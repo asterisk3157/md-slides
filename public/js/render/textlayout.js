@@ -103,30 +103,70 @@ export function layoutLine(segments, xCm, yTopCm, sizeCm, opts) {
   };
 }
 
-// ---- 表 (フォントセル + 罫線)。仮実装: 行をテキストに連結 (Task#3 で罫線化) ----
+// ---- 表 (フォントセル + 罫線)。セルは layoutLine を流用するので数式・カーブ矢印も効く ----
+function shiftItems(items, dx, dy) {
+  for (const it of items) {
+    if (it.t === "text") { it.x += dx; it.y += dy; }
+    else if (it.t === "line") { it.x1 += dx; it.y1 += dy; it.x2 += dx; it.y2 += dy; }
+    else if (it.t === "poly") it.pts = it.pts.map(([x, y]) => [x + dx, y + dy]);
+    else if (it.t === "disc") { it.cx += dx; it.cy += dy; }
+  }
+  return items;
+}
 function layoutTable(table, xCm, yTopCm, sizeCm, opts) {
   const cellSize = sizeCm * 0.82;
-  const measure = opts.measure;
+  const pad = cellSize * 0.35;
   const rowsAll = [table.header, ...table.rows];
+  const nrows = rowsAll.length;
+  let ncols = 0;
+  for (const r of rowsAll) ncols = Math.max(ncols, r.length);
+  if (!nrows || !ncols) return { items: [], x_cm: xCm, y_cm: yTopCm, w_cm: 0, h_cm: 0, label: "[table]" };
+
+  // 各セルを原点で配置
+  const cellBlk = {};
+  const colW = new Array(ncols).fill(0);
+  for (let r = 0; r < nrows; r++) {
+    for (let c = 0; c < ncols; c++) {
+      const cell = c < rowsAll[r].length ? rowsAll[r][c] : [];
+      const blk = layoutLine(cell, 0, 0, cellSize, opts);
+      cellBlk[`${r},${c}`] = blk;
+      colW[c] = Math.max(colW[c], blk.w_cm);
+    }
+  }
+  for (let c = 0; c < ncols; c++) colW[c] += 2 * pad;
+  const rowH = cellSize * 1.7;
+  const totalW = colW.reduce((a, b) => a + b, 0);
+  const totalH = rowH * nrows;
+  const sum = (arr, k) => arr.slice(0, k).reduce((a, b) => a + b, 0);
   const items = [];
-  let y = yTopCm, maxW = 0;
-  for (const row of rowsAll) {
-    const text = row.map((cell) => cellPlainText(cell)).join("  |  ");
-    const w = measure(text, cellSize, false);
-    items.push({ t: "text", x: xCm, y: y + cellSize * ASCENT, size: cellSize, text, bold: false, color: null, italic: false, _w: w });
-    y += cellSize * 1.7; maxW = Math.max(maxW, w);
+  const lw = sizeCm * 0.03;
+
+  // 横罫線
+  for (let r = 0; r <= nrows; r++) {
+    const yy = yTopCm + r * rowH;
+    items.push({ t: "line", x1: xCm, y1: yy, x2: xCm + totalW, y2: yy, w: lw });
   }
-  return { items, x_cm: xCm, y_cm: yTopCm, w_cm: maxW, h_cm: y - yTopCm, label: "[table]" };
-}
-function cellPlainText(cell) {
-  // parseInline セグメント列 → 素のテキスト (仮: 数式はソースのまま)
-  let out = "";
-  for (const seg of cell) {
-    if (typeof seg === "string") out += seg;
-    else if (seg && seg.kind === "math") out += seg.formula.replace(/\\[a-zA-Z]+/g, (m) => m.slice(1)).replace(/[{}]/g, "");
-    else if (seg && seg.parts) out += cellPlainText(seg.parts);
+  // 縦罫線 (1列目の右は増減表慣習で二重線)
+  const dblGap = cellSize * 0.12;
+  for (let c = 0; c <= ncols; c++) {
+    const xx = xCm + sum(colW, c);
+    items.push({ t: "line", x1: xx, y1: yTopCm, x2: xx, y2: yTopCm + totalH, w: lw });
+    if (c === 1) items.push({ t: "line", x1: xx + dblGap, y1: yTopCm, x2: xx + dblGap, y2: yTopCm + totalH, w: lw });
   }
-  return out;
+  // セル内容を中央寄せで配置
+  for (let r = 0; r < nrows; r++) {
+    for (let c = 0; c < ncols; c++) {
+      const blk = cellBlk[`${r},${c}`];
+      if (!blk.items.length) continue;
+      const cellX = xCm + sum(colW, c);
+      const cellY = yTopCm + r * rowH;
+      const dx = cellX + (colW[c] - blk.w_cm) / 2 - blk.x_cm;
+      const dy = cellY + (rowH - cellSize) / 2;
+      shiftItems(blk.items, dx, dy);
+      items.push(...blk.items);
+    }
+  }
+  return { items, x_cm: xCm, y_cm: yTopCm, w_cm: totalW, h_cm: totalH, label: "[table]" };
 }
 
 // ---- 1スライドの縦フロー (flow.js の layoutFlow に対応するフォント版) ----
@@ -154,7 +194,7 @@ export function createTextLayout(opts) {
       shiftBlock(blk, dx, 0);
       return blk;
     }
-    if (item.type === "table") return layoutTable(item, xCm, yTopCm, sizes.body, { measure });
+    if (item.type === "table") return layoutTable(item, xCm, yTopCm, sizes.body, lineOpts());
     return { items: [], x_cm: xCm, y_cm: yTopCm, w_cm: 0, h_cm: 0, label: "" };
   }
 
