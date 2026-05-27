@@ -416,8 +416,8 @@ function showFmtbar(anchorEl) {
   const stage = $("stage"); if (stage) { stage.classList.add("editing"); stage.classList.add("has-selection"); }
   const hint = $("editHint");
   if (hint) hint.textContent = (selected && selected.el != null)
-    ? "ドラッグで移動 / 別の場所クリックで解除"
-    : "ドラッグで移動 / 角でリサイズ / Shiftで吸着 / ダブルクリックで文字単位編集";
+    ? "ドラッグで移動・別の場所をクリックで解除"
+    : "ドラッグで移動・角でリサイズ・ダブルクリックで文字を編集";
   bar.classList.add("is-visible");
   requestAnimationFrame(() => positionFmtbar(anchorEl));
 }
