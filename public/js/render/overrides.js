@@ -72,8 +72,34 @@ export function applyBlockOverride(block, ov) {
   };
 }
 
+// テキストモード (RenderItem 配列) 版の override 適用。
+// ブロック原点中心に scale → (dx,dy) 平行移動。色/太字も焼き込む。
+export function applyBlockOverrideItems(block, ov) {
+  if (!ov) return block;
+  const dx = ov.dx || 0, dy = ov.dy || 0, s = ov.s || 1;
+  const geom = !(dx === 0 && dy === 0 && s === 1);
+  const hasColor = ov.color != null, hasBold = ov.bold != null;
+  if (!geom && !hasColor && !hasBold) return block;
+  const ox = block.x_cm, oy = block.y_cm;
+  const pt = (x, y) => [ox + (x - ox) * s + dx, oy + (y - oy) * s + dy];
+  const items = (block.items || []).map((it) => {
+    const n = { ...it };
+    if (hasColor && (it.t === "text" || it.t === "line" || it.t === "poly" || it.t === "disc")) n.color = ov.color;
+    if (hasBold && it.t === "text") n.bold = ov.bold;
+    if (geom) {
+      if (it.t === "text") { const [x, y] = pt(it.x, it.y); n.x = x; n.y = y; n.size = it.size * s; if (it._w != null) n._w = it._w * s; }
+      else if (it.t === "line") { const [x1, y1] = pt(it.x1, it.y1); const [x2, y2] = pt(it.x2, it.y2); n.x1 = x1; n.y1 = y1; n.x2 = x2; n.y2 = y2; n.w = (it.w || 0.05) * s; }
+      else if (it.t === "poly") { n.pts = it.pts.map(([x, y]) => pt(x, y)); n.w = (it.w || 0.05) * s; }
+      else if (it.t === "disc") { const [cx, cy] = pt(it.cx, it.cy); n.cx = cx; n.cy = cy; n.r = it.r * s; }
+    }
+    return n;
+  });
+  return { ...block, items, x_cm: ox + dx, y_cm: oy + dy, w_cm: block.w_cm * s, h_cm: block.h_cm * s };
+}
+
 // slideOv: { [blockIndex]: {dx,dy,s} }。ブロック配列に適用した新配列を返す。
+// テキスト(items)/手書き(placed)を自動判別。
 export function applySlideOverrides(blocks, slideOv) {
   if (!slideOv) return blocks;
-  return blocks.map((b, i) => applyBlockOverride(b, slideOv[i]));
+  return blocks.map((b, i) => (b.items ? applyBlockOverrideItems(b, slideOv[i]) : applyBlockOverride(b, slideOv[i])));
 }

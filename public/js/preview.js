@@ -144,7 +144,7 @@ function update(opts) {
     (mode === "text" ? `<span class="ovwarn" style="color:#2563eb">テキストモード（フォント）</span><span class="ovwarn" style="color:#0a7a3a">アニメ: ${anim ? "左→右ワイプ" : "なし"}</span>` : "") +
     `</div>` +
     (mode === "text"
-      ? slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack })
+      ? slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack }, overrides[i])
       : slideToSvgEditable(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, brushWidthCm }, overrides[i])) +
     `</div>`).join("");
 
@@ -583,8 +583,9 @@ document.getElementById("dl").addEventListener("click", () => {
   try {
     let bytes;
     if (mode === "text") {
-      // ネイティブテキスト出力 (辞書不要・編集可能)
-      bytes = buildPptxText(slides.map((s) => s.blocks), { color: doc.meta.color || "#000000", slideWCm, slideHCm, fontName: fontFamily || "Noto Sans JP", anim }, skeleton);
+      // ネイティブテキスト出力 (辞書不要・編集可能)。override(移動/リサイズ/色)を焼き込む。
+      const sb = slides.map((s, i) => applySlideOverrides(s.blocks, overrides[i]));
+      bytes = buildPptxText(sb, { color: doc.meta.color || "#000000", slideWCm, slideHCm, fontName: fontFamily || "Noto Sans JP", anim }, skeleton);
     } else {
       const sb = slides.map((s, i) => applySlideOverrides(s.blocks, overrides[i]));
       bytes = buildPptx(sb, { color: doc.meta.color || "#000000", brushWidthCm: doc.meta.brush_width_cm || 0.06 }, skeleton);

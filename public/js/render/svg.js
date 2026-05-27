@@ -138,44 +138,65 @@ export function slideToSvgText(blocks, slideWCm, slideHCm, opts) {
   return parts.join("");
 }
 
-// 描画アイテム (textlayout.js / formulafont.js の RenderItem) → SVG。
-// テキストモードの主経路。blocks の各 .items を text/line/poly/disc で描く。
-export function slideItemsToSvg(blocks, slideWCm, slideHCm, opts) {
+// 1 つの RenderItem を SVG 文字列に。色/太字のブロック override を反映。
+function itemToSvg(it, px, defaultColor, fontFamily, ovColor, ovBold) {
+  if (it.t === "text") {
+    if (!it.text) return "";
+    const fill = ovColor != null ? ovColor : (it.color || defaultColor);
+    const bold = ovBold != null ? ovBold : it.bold;
+    const fw = bold ? ' font-weight="bold"' : "";
+    const fs = it.italic ? ' font-style="italic"' : "";
+    return `<text x="${(it.x * px).toFixed(2)}" y="${(it.y * px).toFixed(2)}" font-family="${escXml(fontFamily)}" font-size="${(it.size * px).toFixed(2)}"${fw}${fs} fill="${fill}">${escXml(it.text)}</text>`;
+  }
+  const color = ovColor != null ? ovColor : (it.color || defaultColor);
+  if (it.t === "line") {
+    const w = Math.max(1, (it.w || 0.05) * px);
+    return `<line x1="${(it.x1 * px).toFixed(2)}" y1="${(it.y1 * px).toFixed(2)}" x2="${(it.x2 * px).toFixed(2)}" y2="${(it.y2 * px).toFixed(2)}" stroke="${color}" stroke-width="${w.toFixed(2)}" stroke-linecap="round"/>`;
+  }
+  if (it.t === "poly") {
+    const w = Math.max(1, (it.w || 0.05) * px);
+    const pts = it.pts.map(([x, y]) => `${(x * px).toFixed(1)},${(y * px).toFixed(1)}`).join(" ");
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${w.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  if (it.t === "disc") {
+    return `<circle cx="${(it.cx * px).toFixed(2)}" cy="${(it.cy * px).toFixed(2)}" r="${Math.max(1, it.r * px).toFixed(2)}" fill="${color}"/>`;
+  }
+  return "";
+}
+
+// 描画アイテム (textlayout.js / formulafont.js の RenderItem) → SVG。テキストモードの主経路。
+// 各ブロックを <g class="blk" data-block="i"> で包み、ブロック当たり判定(.bhit)＋override
+// transform を出す → preview.js の選択/ドラッグ移動/リサイズ/書式ツールバーが効く。
+export function slideItemsToSvg(blocks, slideWCm, slideHCm, opts, slideOv) {
   opts = opts || {};
   const px = opts.pxPerCm || 40.0;
   const defaultColor = opts.defaultColor || "#000000";
   const fontFamily = opts.fontFamily || "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif";
   const wPx = slideWCm * px, hPx = slideHCm * px;
   const parts = [];
-  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${wPx.toFixed(0)}" height="${hPx.toFixed(0)}" viewBox="0 0 ${wPx.toFixed(0)} ${hPx.toFixed(0)}" style="background:#fff;border:1px solid #ddd">`);
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" class="edit-svg" width="${wPx.toFixed(0)}" height="${hPx.toFixed(0)}" viewBox="0 0 ${wPx.toFixed(0)} ${hPx.toFixed(0)}" style="background:#fff;border:1px solid #ddd">`);
   // 編集補助の点線グリッド (1cm方眼, 極薄)。pptx 出力には含まれない。
   if (opts.grid !== false) {
     const step = px;
-    const g = ['<g pointer-events="none">'];
+    const g = ['<g class="grid" pointer-events="none">'];
     for (let x = step; x < wPx; x += step) g.push(`<line x1="${x.toFixed(0)}" y1="0" x2="${x.toFixed(0)}" y2="${hPx.toFixed(0)}" stroke="#e3e3e8" stroke-width="1" stroke-dasharray="1 4"/>`);
     for (let y = step; y < hPx; y += step) g.push(`<line x1="0" y1="${y.toFixed(0)}" x2="${wPx.toFixed(0)}" y2="${y.toFixed(0)}" stroke="#e3e3e8" stroke-width="1" stroke-dasharray="1 4"/>`);
     g.push("</g>");
     parts.push(g.join(""));
   }
-  for (const blk of blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    const blk = blocks[i];
+    const ov = slideOv ? slideOv[i] : null;
+    const tr = overrideTransform(ov, blk.x_cm, blk.y_cm, px);
+    const ovColor = ov && ov.color != null ? ov.color : null;
+    const ovBold = ov && ov.bold != null ? ov.bold : null;
+    parts.push(`<g class="blk" data-block="${i}"${tr ? ` transform="${tr}"` : ""}>`);
+    parts.push(hitRect("bhit", blk.x_cm, blk.y_cm, blk.w_cm, blk.h_cm, px));
     for (const it of (blk.items || [])) {
-      if (it.t === "text") {
-        if (!it.text) continue;
-        const fill = it.color || defaultColor;
-        const fw = it.bold ? ' font-weight="bold"' : "";
-        const fs = it.italic ? ' font-style="italic"' : "";
-        parts.push(`<text x="${(it.x * px).toFixed(2)}" y="${(it.y * px).toFixed(2)}" font-family="${escXml(fontFamily)}" font-size="${(it.size * px).toFixed(2)}"${fw}${fs} fill="${fill}">${escXml(it.text)}</text>`);
-      } else if (it.t === "line") {
-        const w = Math.max(1, (it.w || 0.05) * px);
-        parts.push(`<line x1="${(it.x1 * px).toFixed(2)}" y1="${(it.y1 * px).toFixed(2)}" x2="${(it.x2 * px).toFixed(2)}" y2="${(it.y2 * px).toFixed(2)}" stroke="${it.color || defaultColor}" stroke-width="${w.toFixed(2)}" stroke-linecap="round"/>`);
-      } else if (it.t === "poly") {
-        const w = Math.max(1, (it.w || 0.05) * px);
-        const pts = it.pts.map(([x, y]) => `${(x * px).toFixed(1)},${(y * px).toFixed(1)}`).join(" ");
-        parts.push(`<polyline points="${pts}" fill="none" stroke="${it.color || defaultColor}" stroke-width="${w.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`);
-      } else if (it.t === "disc") {
-        parts.push(`<circle cx="${(it.cx * px).toFixed(2)}" cy="${(it.cy * px).toFixed(2)}" r="${Math.max(1, it.r * px).toFixed(2)}" fill="${it.color || defaultColor}"/>`);
-      }
+      const s = itemToSvg(it, px, defaultColor, fontFamily, ovColor, ovBold);
+      if (s) parts.push(s);
     }
+    parts.push("</g>");
   }
   parts.push("</svg>");
   return parts.join("");
