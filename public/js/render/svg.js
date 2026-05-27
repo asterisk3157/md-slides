@@ -138,6 +138,40 @@ export function slideToSvgText(blocks, slideWCm, slideHCm, opts) {
   return parts.join("");
 }
 
+// 描画アイテム (textlayout.js / formulafont.js の RenderItem) → SVG。
+// テキストモードの主経路。blocks の各 .items を text/line/poly/disc で描く。
+export function slideItemsToSvg(blocks, slideWCm, slideHCm, opts) {
+  opts = opts || {};
+  const px = opts.pxPerCm || 40.0;
+  const defaultColor = opts.defaultColor || "#000000";
+  const fontFamily = opts.fontFamily || "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif";
+  const wPx = slideWCm * px, hPx = slideHCm * px;
+  const parts = [];
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${wPx.toFixed(0)}" height="${hPx.toFixed(0)}" viewBox="0 0 ${wPx.toFixed(0)} ${hPx.toFixed(0)}" style="background:#fff;border:1px solid #ddd">`);
+  for (const blk of blocks) {
+    for (const it of (blk.items || [])) {
+      if (it.t === "text") {
+        if (!it.text) continue;
+        const fill = it.color || defaultColor;
+        const fw = it.bold ? ' font-weight="bold"' : "";
+        const fs = it.italic ? ' font-style="italic"' : "";
+        parts.push(`<text x="${(it.x * px).toFixed(2)}" y="${(it.y * px).toFixed(2)}" font-family="${escXml(fontFamily)}" font-size="${(it.size * px).toFixed(2)}"${fw}${fs} fill="${fill}">${escXml(it.text)}</text>`);
+      } else if (it.t === "line") {
+        const w = Math.max(1, (it.w || 0.05) * px);
+        parts.push(`<line x1="${(it.x1 * px).toFixed(2)}" y1="${(it.y1 * px).toFixed(2)}" x2="${(it.x2 * px).toFixed(2)}" y2="${(it.y2 * px).toFixed(2)}" stroke="${it.color || defaultColor}" stroke-width="${w.toFixed(2)}" stroke-linecap="round"/>`);
+      } else if (it.t === "poly") {
+        const w = Math.max(1, (it.w || 0.05) * px);
+        const pts = it.pts.map(([x, y]) => `${(x * px).toFixed(1)},${(y * px).toFixed(1)}`).join(" ");
+        parts.push(`<polyline points="${pts}" fill="none" stroke="${it.color || defaultColor}" stroke-width="${w.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+      } else if (it.t === "disc") {
+        parts.push(`<circle cx="${(it.cx * px).toFixed(2)}" cy="${(it.cy * px).toFixed(2)}" r="${Math.max(1, it.r * px).toFixed(2)}" fill="${it.color || defaultColor}"/>`);
+      }
+    }
+  }
+  parts.push("</svg>");
+  return parts.join("");
+}
+
 // blocks: layoutFlow / layoutTextLine が返す Block の配列 (各 .placed を持つ)
 export function slideToSvg(blocks, slideWCm, slideHCm, opts) {
   opts = opts || {};

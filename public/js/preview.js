@@ -1,7 +1,8 @@
-// 手書きプレビュー＋エディタ: MD → スライド → ブロック移動/リサイズ(overrides) → pptx。
+// テキストプレビュー＋エディタ: MD → スライド → ブロック移動/リサイズ(overrides) → pptx。
 import { createRenderer } from "/js/render/index.js";
 import { buildPptx } from "/js/render/pptxbuild.js";
-import { slideToSvgEditable, slideToSvgText, overrideTransform } from "/js/render/svg.js";
+import { buildPptxText } from "/js/render/pptxtext.js";
+import { slideToSvgEditable, slideToSvgText, slideItemsToSvg, overrideTransform } from "/js/render/svg.js";
 import { applySlideOverrides } from "/js/render/overrides.js";
 import { qrToSvg } from "/js/qr.js";
 
@@ -143,7 +144,7 @@ function update(opts) {
     (mode === "text" ? `<span class="ovwarn" style="color:#2563eb">テキストモード（フォント）</span>` : "") +
     `</div>` +
     (mode === "text"
-      ? slideToSvgText(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, brushWidthCm, fontFamily })
+      ? slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack })
       : slideToSvgEditable(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, brushWidthCm }, overrides[i])) +
     `</div>`).join("");
 
@@ -567,11 +568,17 @@ mdEl.addEventListener("drop", (e) => {
 // ---- ツールバー ----
 document.getElementById("dl").addEventListener("click", () => {
   if (!lastResult || !skeleton) { setStatus("warn", "まだ準備中です"); return; }
-  const { doc, slides, color, brushWidthCm } = lastResult;
+  const { doc, slides, color, brushWidthCm, mode, fontFamily, slideWCm, slideHCm } = lastResult;
   if (!slides.length) { setStatus("err", "スライドがありません"); return; }
   try {
-    const sb = slides.map((s, i) => applySlideOverrides(s.blocks, overrides[i]));
-    const bytes = buildPptx(sb, { color: doc.meta.color || "#000000", brushWidthCm: doc.meta.brush_width_cm || 0.06 }, skeleton);
+    let bytes;
+    if (mode === "text") {
+      // ネイティブテキスト出力 (辞書不要・編集可能)
+      bytes = buildPptxText(slides.map((s) => s.blocks), { color: doc.meta.color || "#000000", slideWCm, slideHCm, fontName: fontFamily || "Noto Sans JP" }, skeleton);
+    } else {
+      const sb = slides.map((s, i) => applySlideOverrides(s.blocks, overrides[i]));
+      bytes = buildPptx(sb, { color: doc.meta.color || "#000000", brushWidthCm: doc.meta.brush_width_cm || 0.06 }, skeleton);
+    }
     const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "slides.pptx";
@@ -626,33 +633,33 @@ function writeOverridesToMd(text, ov) {
 }
 
 async function init() {
-  setStatus("warn", "辞書・メトリクス・骨格を読み込み中…");
+  setStatus("warn", "読み込み中…");
   try {
-    const [m, ex, sk] = await Promise.all([
+    // テキストモードは辞書不要 (コールドスタートゼロ)。骨格(pptx) と metrics のみ。
+    const [m, sk] = await Promise.all([
       fetch("/metrics.json").then((r) => r.json()),
-      fetch("/api/export").then((r) => r.json()),
       fetch("/skeleton.json").then((r) => r.json()),
     ]);
     renderer = createRenderer(m);
-    characters = ex.characters || {};
-    theme = ex.theme || {};
+    characters = {};
+    theme = {};
     skeleton = sk.parts;
   } catch (e) { setStatus("err", "読み込み失敗: " + (e && e.message ? e.message : e)); return; }
   if (!mdEl.value.trim()) mdEl.value = SAMPLE;
-  update(); // 初期SAMPLEではQRを自動表示しない (バーのみ)。ドロップ時に全画面QR
+  update();
   baselineHistory();
 }
 
 // 初期表示は機能ショーケース (examples/demo_slides.md と同内容)
 const SAMPLE = String.raw`---
-type: handwriting-slides
+type: slides
 styles:
   key:   { color: red, bold: true }
   note:  { color: blue }
   brand: { color: "#e8632a", bold: true }
 ---
 
-# Tegaki Slides でできること
+# md-slides でできること
 
 - 見出し・箇条書き・段落をそのまま記述
 - **太字** と <span class="key">強調</span> <span class="note">補足</span> <span class="weak">控えめ</span>
@@ -714,13 +721,13 @@ $$ e^{i\pi} + 1 = 0 $$
 `;
 
 // ---- LLM 向け記法ルール (コピペ用) ----
-const LLM_SPEC = String.raw`あなたは「Tegaki Slides」用の Markdown を作るアシスタントです。
+const LLM_SPEC = String.raw`あなたはmd→slide 用の Markdown を作るアシスタントです。
 次の記法に厳密に従い、指定テーマの解説スライドを Markdown だけで出力してください（前置きやコードフェンスは不要）。
 
 【スライドの構造】
 ・先頭に YAML フロントマター(省略可):
   ---
-  type: handwriting-slides
+  type: slides
   heading_pt: 50        # 見出しサイズ(pt)
   subheading_pt: 32     # 小見出し(pt)
   body_pt: 28           # 本文(pt)
@@ -764,7 +771,7 @@ const LLM_SPEC = String.raw`あなたは「Tegaki Slides」用の Markdown を�
 
 【例】
 ---
-type: handwriting-slides
+type: slides
 styles:
   key: { color: red, bold: true }
 ---
