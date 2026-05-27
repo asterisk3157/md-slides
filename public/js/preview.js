@@ -252,9 +252,12 @@ function onSvgPointerDown(e, slide, svg) {
     drag = { kind: "block", mode: "resize", slide: selected.slide, block: selected.block, startCm: [cx, cy], ov0: { ...ovFor(selected.slide, selected.block) }, svg };
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
   }
-  // 文字編集モード中の要素クリック (ehit矩形/インクのどちらをクリックしても選択)
+  // 文字編集モード中、編集中ブロック内の要素クリック (ehit/グリフどちらでも) → 要素選択/ドラッグ。
+  // 別ブロックの要素/文字をクリックした場合はここを通さず、下のブロック処理へ (ダブルクリックで切替)。
   const elHit = e.target.closest(".el");
-  if (charMode && charMode.slide === slide && elHit) {
+  const elHitBlk = elHit ? elHit.closest(".blk") : null;
+  const elHitBlock = elHitBlk ? parseInt(elHitBlk.dataset.block, 10) : null;
+  if (charMode && charMode.slide === slide && elHit && elHitBlock === charMode.block) {
     lastTap = null;
     const el = parseInt(elHit.dataset.el, 10);
     selected = { slide, block: charMode.block, el };
