@@ -108,8 +108,29 @@ function itemsBbox(items) {
   return [xn, yn, xx, yx];
 }
 
+// 連続する同スタイル・隣接のテキスト item を1つに再結合 (1文字=1itemで来るため、
+// 未編集の文字列を1テキストボックスに戻してネイティブ編集性を保つ)。
+function canMerge(a, b) {
+  if (a.t !== "text" || b.t !== "text") return false;
+  if (!!a.bold !== !!b.bold || !!a.italic !== !!b.italic) return false;
+  if ((a.color || "") !== (b.color || "")) return false;
+  if ((a.font || "") !== (b.font || "")) return false;
+  if (Math.abs(a.size - b.size) > 1e-4 || Math.abs(a.y - b.y) > 1e-4) return false;
+  const aw = a._w != null ? a._w : 0;
+  return Math.abs(b.x - (a.x + aw)) <= a.size * 0.3; // ほぼ連続
+}
+function mergeTextItems(items) {
+  const out = [];
+  for (const it of items) {
+    const last = out[out.length - 1];
+    if (last && canMerge(last, it)) { last.text += it.text; last._w = (last._w || 0) + (it._w || 0); }
+    else out.push({ ...it });
+  }
+  return out;
+}
+
 // 各ブロックを <p:grpSp> でまとめ、ブロック単位でアニメ対象にできるようにする。
-// 返り値: { xml, spids } (spids = 各グループの shape id, アニメ順)
+// 返り値: { xml, spids } (spids = [{gid, dir}], dir = 登場方向 or null)
 function buildSlideXml(blocks, defaultColor, fontName) {
   const p = [];
   p.push(DECL);
@@ -120,11 +141,11 @@ function buildSlideXml(blocks, defaultColor, fontName) {
   let id = 1;
   const spids = [];
   for (const blk of blocks) {
-    const items = (blk.items || []).filter((it) => it.t !== "text" || it.text);
+    const items = mergeTextItems((blk.items || []).filter((it) => it.t !== "text" || it.text));
     if (!items.length) continue;
     const bb = itemsBbox(items);
     const gid = ++id;
-    spids.push(gid);
+    spids.push({ gid, dir: blk.anim || null });
     const ox = emu(bb[0]), oy = emu(bb[1]), cx = Math.max(emu(bb[2] - bb[0]), 1), cy = Math.max(emu(bb[3] - bb[1]), 1);
     p.push("<p:grpSp>");
     p.push(`<p:nvGrpSpPr><p:cNvPr id="${gid}" name="ブロック ${gid}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>`);
@@ -150,8 +171,10 @@ function buildTimingWipe(spids, durMs) {
   p.push("<p:timing><p:tnLst><p:par>");
   p.push('<p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>');
   p.push('<p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>');
+  const WIPE = { left: "left", right: "right", up: "up", down: "down" };
   let nid = 3;
-  for (const sp of spids) {
+  for (const e of spids) {
+    const sp = e.gid, dir = WIPE[e.dir] || "left";
     const outer = nid, mid = nid + 1, click = nid + 2; nid += 3;
     p.push("<p:par>");
     p.push(`<p:cTn id="${outer}" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst>`);
@@ -161,7 +184,7 @@ function buildTimingWipe(spids, durMs) {
     p.push(`<p:cTn id="${click}" presetID="22" presetClass="entr" presetSubtype="8" fill="hold" grpId="0" nodeType="clickEffect"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>`);
     const setId = nid, effId = nid + 1; nid += 2;
     p.push(`<p:set><p:cBhvr><p:cTn id="${setId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid="${sp}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set>`);
-    p.push(`<p:animEffect transition="in" filter="wipe(left)"><p:cBhvr><p:cTn id="${effId}" dur="${durMs}"/><p:tgtEl><p:spTgt spid="${sp}"/></p:tgtEl></p:cBhvr></p:animEffect>`);
+    p.push(`<p:animEffect transition="in" filter="wipe(${dir})"><p:cBhvr><p:cTn id="${effId}" dur="${durMs}"/><p:tgtEl><p:spTgt spid="${sp}"/></p:tgtEl></p:cBhvr></p:animEffect>`);
     p.push("</p:childTnLst></p:cTn></p:par>");
     p.push("</p:childTnLst></p:cTn></p:par>");
     p.push("</p:childTnLst></p:cTn></p:par>");

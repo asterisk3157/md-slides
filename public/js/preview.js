@@ -163,6 +163,22 @@ function update(opts) {
   updateFmtbar();
 }
 
+// 登場アニメの向き (ブロック単位 override.anim)。同じ向きを再クリックで既定に戻す。
+function setAnimDir(dir) {
+  if (!selected) return;
+  const ov = ovFor(selected.slide, selected.block);
+  if (ov.anim === dir) delete ov.anim; else ov.anim = dir;
+  persist(); update(); recordHistory();
+}
+function updateAnimBtns(enabled, curDir) {
+  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"]]) {
+    const b = document.getElementById(id);
+    if (!b) continue;
+    b.disabled = !enabled; b.style.opacity = enabled ? "1" : "0.4";
+    b.classList.toggle("active", enabled && curDir === dir);
+  }
+}
+
 // フォント選択の表示を現在の対象に同期: 選択中はその override.font、未選択は文書 font:。
 function syncFontSel() {
   const fontSel = document.getElementById("fontSel");
@@ -534,11 +550,15 @@ function updateFmtbar() {
 
   if (!meta) { // 選択なし → 全部グレーアウト
     en(boldBtn, false); en(colorBtnEl, false); szBtns.forEach((b) => en(b, false));
+    updateAnimBtns(false);
     closeColorPop();
     document.getElementById("fmtRole").textContent = "—";
     document.getElementById("fmtSizeVal").textContent = "–";
     return;
   }
+  // 登場アニメ方向 (ブロック単位)
+  const bAnim = (overrides[selected.slide] && overrides[selected.slide][selected.block]) || {};
+  updateAnimBtns(true, bAnim.anim);
   const bo = overrides[selected.slide] && overrides[selected.slide][selected.block];
   // 太字: 要素=override / ブロック=単一行テキストのみ MD
   if (isEl) {
@@ -575,6 +595,10 @@ if (fmtbar) {
   document.addEventListener("click", (e) => { if (colorPop && colorPop.style.display === "block" && !e.target.closest(".fmt-colorwrap")) closeColorPop(); });
   document.getElementById("fmtSizeUp").addEventListener("click", () => changeSize(2));
   document.getElementById("fmtSizeDown").addEventListener("click", () => changeSize(-2));
+  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"]]) {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener("click", () => setAnimDir(dir));
+  }
 }
 
 // ---- フォント選択 ----

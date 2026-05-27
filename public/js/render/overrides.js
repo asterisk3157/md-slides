@@ -91,7 +91,9 @@ export function applyBlockOverrideItems(block, ov) {
   const hasBlockVis = ov.color != null || ov.bold != null || ov.font != null;
   const els = ov.els || null;
   const hasEls = els && Object.keys(els).length > 0;
-  if (!hasBlock && !hasBlockVis && !hasEls) return block;
+  const hasAnim = ov.anim != null;
+  if (!hasBlock && !hasBlockVis && !hasEls && !hasAnim) return block;
+  if (!hasBlock && !hasBlockVis && !hasEls) return { ...block, anim: ov.anim }; // 登場方向のみ
   const elements = block.elements || [];
   const items = (block.items || []).map((it) => ({ ...it, pts: it.pts ? it.pts.map((p) => [...p]) : undefined }));
 
@@ -116,7 +118,9 @@ export function applyBlockOverrideItems(block, ov) {
   // 2) ブロック全体の幾何 override を全 item へ
   if (hasBlock) for (const it of items) xformItem(it, block.x_cm, block.y_cm, bdx, bdy, bs);
 
-  return { ...block, items, x_cm: block.x_cm + bdx, y_cm: block.y_cm + bdy, w_cm: block.w_cm * bs, h_cm: block.h_cm * bs };
+  const out = { ...block, items, x_cm: block.x_cm + bdx, y_cm: block.y_cm + bdy, w_cm: block.w_cm * bs, h_cm: block.h_cm * bs };
+  if (hasAnim) out.anim = ov.anim;
+  return out;
 }
 
 // slideOv: { [blockIndex]: {dx,dy,s} }。ブロック配列に適用した新配列を返す。

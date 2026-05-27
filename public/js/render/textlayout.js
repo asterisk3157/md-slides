@@ -89,9 +89,13 @@ export function layoutLine(segments, xCm, yTopCm, sizeCm, opts) {
     const text = typeof seg === "string" ? seg : String(seg);
     if (!text) continue;
     labelParts.push(bold ? `**${text}**` : text);
-    const w = measure(text, sizeCm, bold);
-    items.push({ t: "text", x: cursorX, y: baseY, size: sizeCm, text, bold, color, italic: false, _w: w });
-    cursorX += w + CHAR_GAP;
+    // 1文字 = 1 item (= 文字編集モードで1要素)。個別に色/太字/サイズ/フォント/位置を指定できる。
+    // pptx 側では未変更の連続文字を1テキストボックスに再結合する (ネイティブ編集性を維持)。
+    for (const ch of text) {
+      const cw = measure(ch, sizeCm, bold);
+      items.push({ t: "text", x: cursorX, y: baseY, size: sizeCm, text: ch, bold, color, italic: false, _w: cw });
+      cursorX += cw + CHAR_GAP;
+    }
   }
 
   return {
