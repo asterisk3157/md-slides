@@ -169,6 +169,22 @@ function layoutTable(table, xCm, yTopCm, sizeCm, opts) {
   return { items, x_cm: xCm, y_cm: yTopCm, w_cm: totalW, h_cm: totalH, label: "[table]" };
 }
 
+// RenderItem 1個の bbox [xmin,ymin,xmax,ymax] (cm)
+export function itemBbox(it) {
+  if (it.t === "text") { const w = it._w != null ? it._w : 0; return [it.x, it.y - it.size * ASCENT, it.x + w, it.y + it.size * (1 - ASCENT)]; }
+  if (it.t === "line") return [Math.min(it.x1, it.x2), Math.min(it.y1, it.y2), Math.max(it.x1, it.x2), Math.max(it.y1, it.y2)];
+  if (it.t === "poly") { const xs = it.pts.map((p) => p[0]), ys = it.pts.map((p) => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; }
+  if (it.t === "disc") return [it.cx - it.r, it.cy - it.r, it.cx + it.r, it.cy + it.r];
+  return [0, 0, 0, 0];
+}
+// items を「要素」化 (文字編集モードで個別ドラッグ/書式する単位)。1 item = 1 element。
+function computeElements(items) {
+  return (items || []).map((it, i) => {
+    const [x0, y0, x1, y1] = itemBbox(it);
+    return { start: i, end: i + 1, x_cm: x0, y_cm: y0, w_cm: x1 - x0, h_cm: y1 - y0 };
+  });
+}
+
 // ---- 1スライドの縦フロー (flow.js の layoutFlow に対応するフォント版) ----
 export function createTextLayout(opts) {
   opts = opts || {};
@@ -202,9 +218,10 @@ export function createTextLayout(opts) {
     const [hx, hy] = opts.headingOrigin || [1.5, 1.0];
     const [bx, by] = opts.bodyOrigin || [2.0, 4.2];
     const slideH = opts.slideHCm || 19.05;
+    const finalize = (overflow) => { for (const b of blocks) b.elements = computeElements(b.items); return { blocks, overflow }; };
     const blocks = [];
     blocks.push(layoutLine(heading, hx, hy, sizes.heading, lineOpts()));
-    if (!content || !content.length) return { blocks, overflow: false };
+    if (!content || !content.length) return finalize(false);
 
     const availableH = Math.max(1.0, slideH - by - 0.8);
     const minGap = sizes.body * 0.45;
@@ -221,7 +238,7 @@ export function createTextLayout(opts) {
       blocks.push(blk);
       cursorY += heights[k] + gap;
     }
-    return { blocks, overflow };
+    return finalize(overflow);
   }
 
   return { layoutSlide, layoutLine: (seg, x, y, s, e) => layoutLine(seg, x, y, s, lineOpts(e)) };

@@ -72,29 +72,51 @@ export function applyBlockOverride(block, ov) {
   };
 }
 
+// 1 RenderItem を原点(ox,oy)中心に scale → (dx,dy) 平行移動 (破壊的)。
+function xformItem(n, ox, oy, dx, dy, s) {
+  const pt = (x, y) => [ox + (x - ox) * s + dx, oy + (y - oy) * s + dy];
+  if (n.t === "text") { const [x, y] = pt(n.x, n.y); n.x = x; n.y = y; n.size = n.size * s; if (n._w != null) n._w = n._w * s; }
+  else if (n.t === "line") { const [x1, y1] = pt(n.x1, n.y1); const [x2, y2] = pt(n.x2, n.y2); n.x1 = x1; n.y1 = y1; n.x2 = x2; n.y2 = y2; n.w = (n.w || 0.05) * s; }
+  else if (n.t === "poly") { n.pts = n.pts.map(([x, y]) => pt(x, y)); n.w = (n.w || 0.05) * s; }
+  else if (n.t === "disc") { const [cx, cy] = pt(n.cx, n.cy); n.cx = cx; n.cy = cy; n.r = n.r * s; }
+}
+const visItem = (it) => it.t === "text" || it.t === "line" || it.t === "poly" || it.t === "disc";
+
 // テキストモード (RenderItem 配列) 版の override 適用。
-// ブロック原点中心に scale → (dx,dy) 平行移動。色/太字も焼き込む。
+// 要素override(els) を先に各 item へ、続いてブロックoverride を全 item へ。色/太字/フォントも焼く。
 export function applyBlockOverrideItems(block, ov) {
   if (!ov) return block;
-  const dx = ov.dx || 0, dy = ov.dy || 0, s = ov.s || 1;
-  const geom = !(dx === 0 && dy === 0 && s === 1);
-  const hasColor = ov.color != null, hasBold = ov.bold != null;
-  if (!geom && !hasColor && !hasBold) return block;
-  const ox = block.x_cm, oy = block.y_cm;
-  const pt = (x, y) => [ox + (x - ox) * s + dx, oy + (y - oy) * s + dy];
-  const items = (block.items || []).map((it) => {
-    const n = { ...it };
-    if (hasColor && (it.t === "text" || it.t === "line" || it.t === "poly" || it.t === "disc")) n.color = ov.color;
-    if (hasBold && it.t === "text") n.bold = ov.bold;
-    if (geom) {
-      if (it.t === "text") { const [x, y] = pt(it.x, it.y); n.x = x; n.y = y; n.size = it.size * s; if (it._w != null) n._w = it._w * s; }
-      else if (it.t === "line") { const [x1, y1] = pt(it.x1, it.y1); const [x2, y2] = pt(it.x2, it.y2); n.x1 = x1; n.y1 = y1; n.x2 = x2; n.y2 = y2; n.w = (it.w || 0.05) * s; }
-      else if (it.t === "poly") { n.pts = it.pts.map(([x, y]) => pt(x, y)); n.w = (it.w || 0.05) * s; }
-      else if (it.t === "disc") { const [cx, cy] = pt(it.cx, it.cy); n.cx = cx; n.cy = cy; n.r = it.r * s; }
-    }
-    return n;
-  });
-  return { ...block, items, x_cm: ox + dx, y_cm: oy + dy, w_cm: block.w_cm * s, h_cm: block.h_cm * s };
+  const bdx = ov.dx || 0, bdy = ov.dy || 0, bs = ov.s || 1;
+  const hasBlock = !(bdx === 0 && bdy === 0 && bs === 1);
+  const hasBlockVis = ov.color != null || ov.bold != null || ov.font != null;
+  const els = ov.els || null;
+  const hasEls = els && Object.keys(els).length > 0;
+  if (!hasBlock && !hasBlockVis && !hasEls) return block;
+  const elements = block.elements || [];
+  const items = (block.items || []).map((it) => ({ ...it, pts: it.pts ? it.pts.map((p) => [...p]) : undefined }));
+
+  // 0) ブロック全体の色/太字/フォント (ベース)。要素 override が後で個別上書き。
+  if (hasBlockVis) for (const it of items) {
+    if (ov.color != null && visItem(it)) it.color = ov.color;
+    if (ov.bold != null && it.t === "text") it.bold = ov.bold;
+    if (ov.font != null && it.t === "text") it.font = ov.font;
+  }
+  // 1) 要素ごとの override (位置/スケール/色/太字/フォント)
+  if (hasEls) for (const [jStr, eo] of Object.entries(els)) {
+    const el = elements[parseInt(jStr, 10)];
+    if (!el) continue;
+    const it = items[el.start];
+    if (!it) continue;
+    if (eo.color != null && visItem(it)) it.color = eo.color;
+    if (eo.bold != null && it.t === "text") it.bold = eo.bold;
+    if (eo.font != null && it.t === "text") it.font = eo.font;
+    const edx = eo.dx || 0, edy = eo.dy || 0, es = eo.s || 1;
+    if (!(edx === 0 && edy === 0 && es === 1)) xformItem(it, el.x_cm, el.y_cm, edx, edy, es);
+  }
+  // 2) ブロック全体の幾何 override を全 item へ
+  if (hasBlock) for (const it of items) xformItem(it, block.x_cm, block.y_cm, bdx, bdy, bs);
+
+  return { ...block, items, x_cm: block.x_cm + bdx, y_cm: block.y_cm + bdy, w_cm: block.w_cm * bs, h_cm: block.h_cm * bs };
 }
 
 // slideOv: { [blockIndex]: {dx,dy,s} }。ブロック配列に適用した新配列を返す。

@@ -161,9 +161,19 @@ function update(opts) {
   }
   if (selected) drawSelection();
   updateFmtbar();
-  // フォント選択を frontmatter と同期
+}
+
+// フォント選択の表示を現在の対象に同期: 選択中はその override.font、未選択は文書 font:。
+function syncFontSel() {
   const fontSel = document.getElementById("fontSel");
-  if (fontSel) fontSel.value = (mode === "text" && doc.meta.font) ? doc.meta.font : "Noto Sans JP";
+  if (!fontSel || !lastResult) return;
+  let fv = (lastResult.mode === "text" && lastResult.doc.meta.font) || "";
+  if (lastResult.mode === "text" && selected) {
+    const bo = overrides[selected.slide] && overrides[selected.slide][selected.block];
+    const t = selected.el != null ? (bo && bo.els && bo.els[selected.el]) : bo;
+    if (t && t.font) fv = t.font;
+  }
+  fontSel.value = fv;
 }
 
 function enterCharMode(slide, block, g) {
@@ -423,6 +433,15 @@ function setFrontmatterKey(md, key, value) {
   lines.splice(end, 0, `${key}: ${value}`);
   return lines.join("\n");
 }
+function removeFrontmatterKey(md, key) {
+  const lines = md.split("\n");
+  if (lines[0].trim() !== "---") return md;
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) if (lines[i].trim() === "---") { end = i; break; }
+  if (end < 0) return md;
+  for (let i = 1; i < end; i++) { const m = /^\s*([A-Za-z_][\w]*)\s*:/.exec(lines[i]); if (m && m[1] === key) { lines.splice(i, 1); return lines.join("\n"); } }
+  return md;
+}
 function editBlockContent(transform) {
   if (!selected || selected.el != null) return;
   const meta = blockMeta(selected.slide, selected.block);
@@ -505,6 +524,7 @@ function buildSwatches(container, colors) {
 function updateFmtbar() {
   if (!fmtbar) return;
   fmtbar.style.display = "flex"; // 常時表示 (出し入れによるレイアウトのズレを防ぐ)
+  syncFontSel();
   const meta = (selected && lastResult) ? blockMeta(selected.slide, selected.block) : null;
   const isEl = !!(meta && selected.el != null);
   const boldBtn = document.getElementById("fmtBold");
@@ -557,11 +577,19 @@ if (fmtbar) {
   document.getElementById("fmtSizeDown").addEventListener("click", () => changeSize(-2));
 }
 
-// ---- フォント選択 (frontmatter font: に書き戻し) ----
+// ---- フォント選択 ----
+// ブロック/文字を選択中 → その対象だけに override.font。未選択 → 文書全体 (frontmatter font:)。
 const fontSelEl = document.getElementById("fontSel");
 if (fontSelEl) fontSelEl.addEventListener("change", () => {
-  mdEl.value = setFrontmatterKey(mdEl.value, "font", fontSelEl.value);
-  update(); baselineHistory();
+  const v = fontSelEl.value;
+  if (lastResult && lastResult.mode === "text" && selected) {
+    const t = selected.el != null ? elOvFor(selected.slide, selected.block, selected.el) : ovFor(selected.slide, selected.block);
+    if (v) t.font = v; else delete t.font;
+    persist(); update(); recordHistory();
+  } else {
+    mdEl.value = v ? setFrontmatterKey(mdEl.value, "font", v) : removeFrontmatterKey(mdEl.value, "font");
+    update(); baselineHistory();
+  }
 });
 
 // ---- ファイルドロップ ----

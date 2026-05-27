@@ -138,15 +138,16 @@ export function slideToSvgText(blocks, slideWCm, slideHCm, opts) {
   return parts.join("");
 }
 
-// 1 つの RenderItem を SVG 文字列に。色/太字のブロック override を反映。
-function itemToSvg(it, px, defaultColor, fontFamily, ovColor, ovBold) {
+// 1 つの RenderItem を SVG 文字列に。色/太字/フォントの override を反映。
+function itemToSvg(it, px, defaultColor, fontFamily, ovColor, ovBold, ovFont) {
   if (it.t === "text") {
     if (!it.text) return "";
     const fill = ovColor != null ? ovColor : (it.color || defaultColor);
     const bold = ovBold != null ? ovBold : it.bold;
     const fw = bold ? ' font-weight="bold"' : "";
     const fs = it.italic ? ' font-style="italic"' : "";
-    return `<text x="${(it.x * px).toFixed(2)}" y="${(it.y * px).toFixed(2)}" font-family="${escXml(fontFamily)}" font-size="${(it.size * px).toFixed(2)}"${fw}${fs} fill="${fill}">${escXml(it.text)}</text>`;
+    const fam = (ovFont || it.font) ? `'${ovFont || it.font}', ${fontFamily}` : fontFamily;
+    return `<text x="${(it.x * px).toFixed(2)}" y="${(it.y * px).toFixed(2)}" font-family="${escXml(fam)}" font-size="${(it.size * px).toFixed(2)}"${fw}${fs} fill="${fill}">${escXml(it.text)}</text>`;
   }
   const color = ovColor != null ? ovColor : (it.color || defaultColor);
   if (it.t === "line") {
@@ -188,13 +189,36 @@ export function slideItemsToSvg(blocks, slideWCm, slideHCm, opts, slideOv) {
     const blk = blocks[i];
     const ov = slideOv ? slideOv[i] : null;
     const tr = overrideTransform(ov, blk.x_cm, blk.y_cm, px);
-    const ovColor = ov && ov.color != null ? ov.color : null;
-    const ovBold = ov && ov.bold != null ? ov.bold : null;
+    const blkColor = ov && ov.color != null ? ov.color : null;
+    const blkBold = ov && ov.bold != null ? ov.bold : null;
+    const blkFont = ov && ov.font != null ? ov.font : null;
+    const elOvs = (ov && ov.els) || {};
     parts.push(`<g class="blk" data-block="${i}"${tr ? ` transform="${tr}"` : ""}>`);
     parts.push(hitRect("bhit", blk.x_cm, blk.y_cm, blk.w_cm, blk.h_cm, px));
-    for (const it of (blk.items || [])) {
-      const s = itemToSvg(it, px, defaultColor, fontFamily, ovColor, ovBold);
-      if (s) parts.push(s);
+    const els = blk.elements;
+    if (els && els.length) {
+      // 要素ごとに <g class="el"> ＋当たり判定。文字編集モードで個別ドラッグ/書式できる。
+      for (let j = 0; j < els.length; j++) {
+        const el = els[j];
+        const eo = elOvs[j] || {};
+        const etr = overrideTransform(eo, el.x_cm, el.y_cm, px);
+        parts.push(`<g class="el" data-el="${j}"${etr ? ` transform="${etr}"` : ""}>`);
+        parts.push(hitRect("ehit", el.x_cm, el.y_cm, el.w_cm, el.h_cm, px, 3, 12));
+        const it = blk.items[el.start];
+        if (it) {
+          const s = itemToSvg(it, px, defaultColor, fontFamily,
+            eo.color != null ? eo.color : blkColor,
+            eo.bold != null ? eo.bold : blkBold,
+            eo.font != null ? eo.font : blkFont);
+          if (s) parts.push(s);
+        }
+        parts.push("</g>");
+      }
+    } else {
+      for (const it of (blk.items || [])) {
+        const s = itemToSvg(it, px, defaultColor, fontFamily, blkColor, blkBold, blkFont);
+        if (s) parts.push(s);
+      }
     }
     parts.push("</g>");
   }
