@@ -20,37 +20,46 @@
 ```
 md-slides/
 ├── public/
-│   ├── *.html              # ランディング / 作成(preview) / （辞書系は削除予定）
+│   ├── index.html / preview.html   # ランディング / 作成(エディタ＋プレビュー)
+│   ├── metrics.json / skeleton.json# レイアウト指標 / pptx静的骨格
 │   └── js/
-│       ├── preview.js      # エディタ＋プレビュー＋pptx
-│       └── render/         # MD→スライドのコア
-│           ├── mdparse.js  # MDパーサ（流用）
-│           ├── layout.js   # フロー・固定ptサイズ（流用→フォント化）
-│           ├── flow.js     # ブロック縦フロー（流用）
-│           ├── formula.js  # 数式レイアウト（配置は流用→描画をフォント化）
-│           ├── theme.js    # 色/スタイル（流用）
-│           ├── svg.js      # プレビュー描画（テキスト経路を主に）
-│           └── pptxbuild.js# pptx生成（インク→ネイティブテキストに作り替え）
-└── docs/requirements.md    # 要件定義（フォーク元から継承）
+│       ├── preview.js              # エディタ＋プレビュー＋pptx (テキスト既定)
+│       └── render/                 # MD→スライドのコア
+│           ├── mdparse.js          # MDパーサ
+│           ├── theme.js            # 色/スタイル(CSS色名・パレット)
+│           ├── formula.js          # 数式パーサ parseFormula(辞書非依存)＋expandCe(化学)
+│           │                         ※ストローク配置層は handwriting 専用(レガシー)
+│           ├── textlayout.js  ★新  # テキスト配置(辞書非依存・canvas計測)＋縦フロー＋表
+│           ├── formulafont.js ★新  # フォント数式(parseFormula流用→グリフ＋手続き線)
+│           ├── svg.js              # slideItemsToSvg(描画アイテム→SVG, テキスト主経路)
+│           ├── pptxtext.js   ★新   # ネイティブテキストpptx(テキストボックス/線/円/freeform)
+│           ├── zip.js              # pptx zip ライター
+│           └── (layout/flow/formula配置/pptxbuild/dict/qr = handwriting レガシー・未使用)
+├── functions/api/{export,theme}.ts # handwriting 由来・テキストモードでは未使用(レガシー)
+└── docs/requirements.md            # 要件定義
+
+描画の中間表現 RenderItem(cm座標, y下向き):
+  {t:"text",x,y(baseline),size,text,bold,color,italic}/{t:"line",x1,y1,x2,y2,w}
+  {t:"poly",pts,w}/{t:"disc",cx,cy,r} → SVG(slideItemsToSvg)とpptx(pptxtext)が同形を展開。
 ```
 
-## 流用するもの（フォーク元のコアは活きる）
-MDパーサ／レイアウト・フロー（固定pt・メモ`>`・はみ出し警告）／**数式レイアウトの配置ロジック**／エディタ（ツールバー・移動/リサイズ・カラーパレット・文字単位書式）／pptx の zip ライター・骨格／テンプレ・LLMスペック・テーマ。
+## 実装状況（2026-05・「作る本体」完了）
+1. ✅ 辞書非依存レイアウト（`textlayout.js`・canvas計測）
+2. ✅ フォント数式（`formulafont.js`：分数/添字/√/∫∑/関数/ベクトル/カーブ矢印）
+3. ✅ pptx ネイティブテキスト出力（`pptxtext.js`）
+4. ✅ フォント選択（既定 Noto Sans JP・ツールバー・frontmatter `font:`）
+5. ✅ 左→右ワイプ ON/OFF（既定ON・frontmatter `anim: off`）
+6. ✅ 化学 `\ce{}` L1+L2（`formula.js` の `expandCe`）
+- 表（罫線・増減表の二重線・カーブ矢印）も対応。
+- **未検証**: pptx を実機 PowerPoint で開いた目視（ベースライン微調整・ワイプ再生）。
+  生成物は整形式XML＋SVGプレビュー一致まで確認済。次は要 PowerPoint 目視。
+- レガシー(handwriting)経路は `mode: handwriting` の時のみ使用。テキスト既定では未使用。
 
-## 捨てるもの（手書き一式・順次削除）
-`handwriting_pptx/`（Python 全部）／辞書(dict/D1)・登録UI(`bulk.*`/`char.*`/`stroke_pad.js`/`presets.js`)・QR(`qr.js`)・不足文字検出／インク(InkML)描画／em/bbox/canvas 座標系／`data/`(dict.json/kanjivg)・`samples/`・`analysis/`。
-
-## 作る本体（変換作業＝ここが新規開発）
-1. **レイアウトを辞書非依存に**：プローズはネイティブテキスト（ブラウザ/PowerPointが字送り）。位置・サイズは現ロジックを流用
-2. **フォント数式**：数式レイアウト（分数/添字/積分等の配置）はそのまま、各グリフをフォント字形で描き、分数バー等は手続き線
-3. **pptx ネイティブテキスト出力**：`pptxbuild` をインクから「テキストボックス＋位置付き数式」へ
-4. **フォント選択**：既定フリー（Noto Sans JP）＋ツールバー＋frontmatter `font:`
-5. **アニメ**：左→右ワイプ（ON/OFF）
-6. **化学 `\ce{}` L1+L2**（数式エンジンに乗せる）
-
-## 開発ルール（フォーク元から継承）
+## 開発・検証
 - 必ず日本語でやり取りする
 - **push / 本番デプロイはユーザーの明示許可が必要**（コミットまでは可）
-- **デプロイは基本しない／ローカル(`npx wrangler pages dev`)で検証**
+- ローカル検証: `public/` を静的配信（`.claude/launch.json` の "static"＝python http.server）。
+  wrangler は未インストール（テキストモードは API 不要なので静的配信で足りる）。
+  ※ブラウザは ES モジュールをキャッシュするので、編集が反映されない時はポート変更でバスト。
 - ユーザーが自分で実行するコマンドは fenced code block（1ブロック=1コマンド）で出す
-- 外部 GitHub からの DL 禁止／外部 npm は原則レジストリ経由
+- 外部 GitHub からの DL 禁止／外部 npm は原則レジストリ経由（Webフォントは Google Fonts CDN）
