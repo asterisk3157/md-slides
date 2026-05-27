@@ -2,189 +2,406 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>作成 — md-slides</title>
+<meta name="viewport" content="width=1440" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet" />
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; color: #222; background: #f0f0f3; }
-  header { background: #fff; border-bottom: 1px solid #ddd; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 5; }
-  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
-  header .sp { flex: 1; }
-  header a { color: #06c; text-decoration: none; font-size: 0.9rem; }
-  .tbtn { padding: 0.4em 0.8em; background: #eee; color: #333; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-  .tbtn:hover { background: #e0e0e0; }
-  /* 当たり判定: ブロック=矩形領域 / 文字=charmode時のみ */
-  .bhit { pointer-events: all; cursor: move; }
-  .blk:not(.charmode):hover .bhit { fill: rgba(0,100,255,0.05) !important; }
-  .ehit { pointer-events: none; cursor: move; }
-  .blk.charmode .ehit { pointer-events: all; stroke: #0a0; stroke-width: 0.8; stroke-dasharray: 2 2; }
-  .blk.charmode .ehit:hover { fill: rgba(0,160,0,0.08) !important; }
-  .wrap { display: flex; gap: 1rem; padding: 1rem; align-items: flex-start; }
-  .left { width: 38%; min-width: 320px; position: sticky; top: 56px; }
-  textarea { width: 100%; height: 70vh; font-family: ui-monospace, Menlo, monospace; font-size: 13px; padding: 0.6rem; border: 1px solid #ccc; border-radius: 8px; resize: none; }
-  .right { flex: 1; }
-  .slide { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-bottom: 1rem; padding: 0.5rem; }
-  .slide.overflow { box-shadow: 0 0 0 2px #dc2626, 0 1px 4px rgba(0,0,0,.1); }
-  .slide.active { background: #eaf2ff; box-shadow: 0 0 0 2px #93b4f5, 0 1px 6px rgba(0,0,0,.12); }
-  /* 編集ヒント: フロー外の固定トースト。出入りしてもツールバー高さ＝レイアウトが動かない。 */
-  .fmt-hint { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30; pointer-events: none; white-space: nowrap; font-size: 0.76rem; color: #fff; background: rgba(33,37,41,0.82); padding: 0.32rem 0.8rem; border-radius: 999px; box-shadow: 0 2px 12px rgba(0,0,0,.28); }
-  .fmt-hint:empty { display: none; }
-  .slide .num { font-size: 0.75rem; color: #888; margin: 0.1rem 0 0.3rem 0.4rem; }
-  .slide .ovwarn { color: #dc2626; font-weight: 600; margin-left: 0.5rem; }
-  .slide svg { max-width: 100%; height: auto; display: block; }
-  .fmtbar { position: sticky; top: 56px; z-index: 4; background:#fff; border:1px solid #ddd; border-radius:8px; padding:0.4rem 0.6rem; margin-bottom:0.6rem; display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap; box-shadow:0 1px 4px rgba(0,0,0,.08); font-size:0.85rem; }
-  .fmtbar .fbtn { border:1px solid #cbd5e1; background:#f8fafc; border-radius:6px; padding:0.18rem 0.55rem; cursor:pointer; font-size:0.85rem; line-height:1.4; }
-  .fmtbar .fbtn:hover { background:#eef2ff; }
-  .fmtbar .fbtn.active { background:#2563eb; color:#fff; border-color:#2563eb; }
-  .fmtbar .fmt-label { color:#666; }
-  .fmtbar .fmt-sep { width:1px; height:18px; background:#e2e8f0; margin:0 0.25rem; }
-  .fmtbar .fmt-role { font-weight:600; }
-  .fmtbar .fmt-colorwrap { position:relative; display:inline-flex; }
-  .fmtbar #fmtColorBtn { display:inline-flex; align-items:center; gap:5px; }
-  .fmtbar .cp-chip { width:13px; height:13px; border:1px solid #aaa; border-radius:2px; background:#000; display:inline-block; }
-  .color-pop { position:absolute; top:calc(100% + 4px); left:0; z-index:20; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.18); padding:0.6rem; width:max-content; }
-  .color-pop .cp-sec { font-size:0.72rem; color:#666; margin:0.15rem 0 0.3rem; }
-  .color-pop .cp-grid { display:grid; grid-template-columns:repeat(10,17px); gap:4px; margin-bottom:0.4rem; }
-  .color-pop .cp-grid.gray { grid-template-columns:repeat(6,17px); }
-  .color-pop .sw { width:17px; height:17px; border:1px solid #ccc; border-radius:3px; cursor:pointer; padding:0; }
-  .color-pop .sw.active { outline:2px solid #2563eb; outline-offset:1px; }
-  .color-pop .cp-foot { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; margin-top:0.35rem; border-top:1px solid #eee; padding-top:0.5rem; }
-  .color-pop .cp-custom { font-size:0.78rem; color:#444; display:inline-flex; align-items:center; gap:5px; }
-  .color-pop .cp-custom input[type=color] { width:28px; height:22px; padding:0; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; }
-  .status { padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.5rem; }
-  .status.err { background: #fee; color: #900; white-space: pre-wrap; }
-  .status.warn { background: #fff8e1; color: #875; }
-  .status.ok { background: #e8f8e8; color: #060; }
-  .hint { font-size: 0.8rem; color: #888; margin-top: 0.4rem; }
-  /* 未登録文字バー */
-  .missing-bar { background: #fff3e0; border: 1px solid #ffcc80; color: #8a5a00; border-radius: 6px; padding: 0.5rem 0.7rem; margin-bottom: 0.5rem; font-size: 0.88rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-  .missing-bar .mchars { font-weight: 700; font-size: 1.05rem; letter-spacing: 0.08em; word-break: break-all; }
-  .missing-bar .sp { flex: 1; }
-  .missing-bar button { padding: 0.35em 0.8em; background: #06c; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; white-space: nowrap; }
-  /* QR 全画面オーバーレイ */
-  .qr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; z-index: 50; }
-  .qr-card { background: #fff; border-radius: 14px; padding: 1.3rem 1.5rem 1.5rem; max-width: 460px; width: 92%; text-align: center; box-shadow: 0 10px 44px rgba(0,0,0,.35); }
-  .qr-card h2 { margin: 0.1rem 0 0.5rem; font-size: 1.15rem; }
-  .qr-missing { font-size: 0.9rem; color: #444; margin: 0.2rem 0 0.5rem; }
-  .qr-missing .mchars { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.1em; word-break: break-all; color: #b00; }
-  .qr-img { width: 256px; height: 256px; margin: 0.6rem auto; border: 1px solid #eee; }
-  .qr-help { font-size: 0.8rem; color: #666; line-height: 1.55; margin: 0.5rem 0 0; }
-  .qr-url { font-size: 0.72rem; color: #06c; word-break: break-all; margin-top: 0.4rem; }
-  .qr-btns { display: flex; gap: 0.6rem; justify-content: center; margin-top: 0.9rem; }
-  .qr-btns button { padding: 0.5em 1em; border-radius: 8px; border: 1px solid #ccc; background: #eee; color: #333; cursor: pointer; font-size: 0.9rem; }
-  .qr-btns .qr-primary { background: #06c; color: #fff; border: none; font-weight: 600; }
-  /* ブランド / ナビ */
-  .brand { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; flex-shrink: 0; }
-  .brand img { height: 26px; display: block; }
-  header nav { display: flex; gap: 0.1rem; }
-  header nav a { font-size: 0.88rem; padding: 0.3rem 0.65rem; border-radius: 6px; color: #333; text-decoration: none; }
-  header nav a:hover { background: #f3f4f6; }
-  header nav a.active { background: #eef2ff; color: #2563eb; font-weight: 600; }
-  .tbtn.active { background: #eef2ff; border-color: #9db4f5; color: #2563eb; }
-  /* LLM 記法ルール */
-  .llm-section { max-width: 1100px; margin: 1.5rem auto 3rem; padding: 0 1rem; }
-  .llm-section details { background: #fff; border: 1px solid #ddd; border-radius: 10px; }
-  .llm-section summary { cursor: pointer; padding: 0.8rem 1rem; font-weight: 600; font-size: 0.95rem; list-style: none; }
-  .llm-section summary::-webkit-details-marker { display: none; }
-  .llm-section summary::before { content: "▸ "; color: #888; }
-  .llm-section details[open] summary::before { content: "▾ "; }
-  .llm-body { padding: 0 1rem 1rem; }
-  .llm-body .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.6rem; }
-  .llm-body .row span.desc { font-size: 0.83rem; color: #666; }
-  .llm-body textarea { width: 100%; height: 300px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 0.6rem; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; }
-  .copybtn { padding: 0.4em 0.9em; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
+/* =========================================================
+   md-slides — Material 3 風 (オリジナル / 非 Google ブランド)
+   ========================================================= */
+:root{
+  --p-0:#000000; --p-10:#001a41; --p-20:#002e6e; --p-30:#00429b;
+  --p-40:#0b57d0; --p-50:#3270e2; --p-60:#5c8bef; --p-70:#7fa5f5;
+  --p-80:#a7c2ff; --p-90:#d6e2ff; --p-95:#ecf0ff; --p-99:#fdfbff; --p-100:#ffffff;
+  --s-30:#3a4a6a; --s-40:#54647f; --s-80:#bfc8e0; --s-90:#dbe2f9; --s-95:#eef0fb;
+  --n-0:#000; --n-6:#101113; --n-10:#1b1b1f; --n-20:#303033; --n-30:#46464a;
+  --n-40:#5e5e62; --n-50:#77777a; --n-60:#909094; --n-70:#abaaaf; --n-80:#c7c6ca;
+  --n-90:#e3e2e6; --n-94:#edecf0; --n-95:#f2f0f4; --n-96:#f5f3f7; --n-98:#faf8fc; --n-100:#fff;
+  --nv-30:#454654; --nv-50:#76778b; --nv-80:#c5c6dd; --nv-90:#e1e2f9;
+  --err-40:#ba1a1a; --err-90:#ffdad6;
+  --primary: var(--p-40); --on-primary: var(--p-100); --primary-container: var(--p-90); --on-primary-container: var(--p-10);
+  --surface: var(--n-98); --surface-dim: var(--n-90); --surface-bright: var(--n-100);
+  --surface-container-lowest: var(--n-100); --surface-container-low: var(--n-96); --surface-container: var(--n-94);
+  --surface-container-high: #e8e6ec; --surface-container-highest: #e1dfe4;
+  --on-surface: var(--n-10); --on-surface-variant: var(--nv-30); --outline: var(--nv-50); --outline-variant: var(--nv-80);
+  --elev-1: 0 1px 2px rgba(0,0,0,.10), 0 1px 3px 1px rgba(0,0,0,.06);
+  --elev-2: 0 1px 2px rgba(0,0,0,.10), 0 2px 6px 2px rgba(0,0,0,.08);
+  --elev-3: 0 1px 3px rgba(0,0,0,.10), 0 4px 8px 3px rgba(0,0,0,.08);
+  --elev-4: 0 2px 3px rgba(0,0,0,.10), 0 6px 10px 4px rgba(0,0,0,.10);
+  --elev-5: 0 4px 4px rgba(0,0,0,.10), 0 8px 12px 6px rgba(0,0,0,.10);
+  --r-xs:4px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:28px; --r-full:9999px;
+  --font-sans: "Roboto","Helvetica Neue",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono: "Roboto Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --easing-emph: cubic-bezier(.2,0,0,1); --easing-std: cubic-bezier(.2,0,0,1);
+}
+*,*::before,*::after{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; height:100%; overflow:hidden; background: var(--surface); color: var(--on-surface); font-family: var(--font-sans); font-size:14px; -webkit-font-smoothing: antialiased; }
+button{ font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+select,input,textarea{ font: inherit; color: inherit; }
+::selection{ background: var(--p-90); color: var(--p-10); }
+
+.app{ display:grid; grid-template-rows: 64px 1fr 28px; height:100vh; min-width: 1280px; }
+
+/* --- 1. Top app bar --- */
+.appbar{ display:flex; align-items:center; gap:16px; padding: 0 16px 0 12px; background: var(--surface-container); border-bottom: 1px solid var(--outline-variant); position:relative; z-index: 4; }
+.appbar .brand{ display:flex; align-items:center; gap:12px; padding: 6px 10px 6px 8px; border-radius: var(--r-full); text-decoration:none; }
+.brand-mark{ width: 32px; height: 32px; border-radius: 8px; background: var(--p-40); display:grid; place-items:center; color: #fff; font-weight:700; font-size: 16px; letter-spacing:-.02em; }
+.brand-wm{ font-weight:500; font-size: 20px; letter-spacing:-.01em; color: var(--on-surface); }
+.brand-wm em{ font-style: normal; color: var(--on-surface); font-weight:700; }
+.appbar .grow{ flex:1; }
+.status-pill{ display:inline-flex; align-items:center; gap:8px; height: 28px; padding: 0 12px; color: var(--on-surface-variant); font-size: 12px; max-width: 460px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.status-pill .dot{ width:6px; height:6px; border-radius:50%; background: var(--on-surface-variant); opacity:.6; flex-shrink:0; }
+.status-pill.err{ color: var(--err-40); } .status-pill.err .dot{ background: var(--err-40); opacity:1; }
+.status-pill.warn{ color:#8a5a00; } .status-pill.warn .dot{ background:#e08600; opacity:1; }
+.icon-btn{ width: 40px; height: 40px; border-radius: var(--r-full); display:inline-grid; place-items:center; color: var(--on-surface-variant); transition: background .15s var(--easing-std); position: relative; }
+.icon-btn:hover{ background: rgba(0,0,0,.06); color: var(--on-surface); }
+.icon-btn:active{ background: rgba(0,0,0,.10); }
+.icon-btn svg{ width:22px; height:22px; }
+.btn-tonal{ display:inline-flex; align-items:center; gap:8px; height: 40px; padding: 0 16px 0 14px; border-radius: var(--r-full); background: var(--p-90); color: var(--p-10); font-weight:500; font-size:14px; transition: background .15s, box-shadow .15s; }
+.btn-tonal:hover{ background: #c4d6ff; box-shadow: var(--elev-1); }
+.btn-tonal svg{ width:18px; height:18px; }
+.btn-filled{ display:inline-flex; align-items:center; gap:10px; height: 44px; padding: 0 22px 0 18px; border-radius: var(--r-full); background: var(--primary); color: var(--on-primary); font-weight:500; font-size:15px; box-shadow: var(--elev-1); transition: box-shadow .15s, background .15s; }
+.btn-filled:hover{ background: #0b4dba; box-shadow: var(--elev-3); }
+.btn-filled svg{ width:20px; height:20px; }
+.btn-outlined{ display:inline-flex; align-items:center; gap:8px; height: 36px; padding: 0 16px; border-radius: var(--r-full); border: 1px solid var(--outline); color: var(--on-surface-variant); font-weight:500; font-size:13px; background: transparent; }
+.btn-outlined:hover{ background: rgba(0,0,0,.04); color: var(--on-surface); }
+.divider-v{ width:1px; height: 28px; background: var(--outline-variant); margin: 0 4px; }
+
+/* --- 2. Formatting toolbar (floating, contextual) --- */
+.fmtbar{ position: fixed; display:flex; align-items:center; gap: 6px; padding: 6px 10px; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: var(--r-full); box-shadow: var(--elev-3); z-index: 6; overflow: visible; transform-origin: 50% 100%; transform: translateY(8px) scale(.96); opacity: 0; pointer-events: none; transition: transform .18s var(--easing-emph), opacity .14s var(--easing-std); white-space: nowrap; top:0; left:0; }
+.fmtbar.is-visible{ opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+.fmtbar::after{ content: ""; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: var(--surface-container-lowest); border-right: 1px solid var(--outline-variant); border-bottom: 1px solid var(--outline-variant); z-index: -1; }
+.fmtbar.is-below::after{ bottom: auto; top: -7px; border-right: 0; border-bottom: 0; border-left: 1px solid var(--outline-variant); border-top: 1px solid var(--outline-variant); }
+.fmtbar .divider-v{ height: 22px; margin: 0 2px; }
+.fmtbar .group{ display:flex; align-items:center; gap: 2px; }
+.fmtbar .group-label{ font-size: 11px; color: var(--on-surface-variant); padding: 0 4px 0 6px; }
+
+/* Empty-state hint on the stage */
+.select-hint{ position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: inline-flex; align-items:center; gap: 8px; background: var(--surface-container-high); color: var(--on-surface-variant); font-size: 12px; padding: 8px 14px; border-radius: var(--r-full); box-shadow: var(--elev-1); pointer-events: none; transition: opacity .2s; }
+.select-hint svg{ width: 14px; height: 14px; }
+.stage.has-selection .select-hint{ opacity: 0; }
+
+.tgl{ height: 34px; min-width: 34px; padding: 0 8px; border-radius: var(--r-full); display:inline-flex; align-items:center; justify-content:center; gap:6px; color: var(--on-surface-variant); transition: background .15s, color .15s; font-weight: 500; font-size: 13px; }
+.tgl:hover{ background: rgba(0,0,0,.05); color: var(--on-surface); }
+.tgl.is-on{ background: var(--p-90); color: var(--p-10); }
+.tgl.is-on:hover{ background: #c4d6ff; }
+.tgl:disabled{ opacity:.4; cursor:default; } .tgl:disabled:hover{ background:none; }
+.tgl svg{ width: 20px; height: 20px; }
+.i-bold{ font-weight: 800; font-size: 16px; line-height: 1; }
+
+.seg{ display:inline-flex; border: 1px solid var(--outline); border-radius: var(--r-full); background: var(--surface-container-low); height: 32px; overflow: hidden; }
+.seg .seg-btn{ min-width: 36px; height: 100%; padding: 0 8px; display:inline-flex; align-items:center; justify-content:center; color: var(--on-surface-variant); border-right: 1px solid var(--outline); transition: background .15s; font-size: 11px; }
+.seg .seg-btn:last-child{ border-right: 0; }
+.seg .seg-btn:hover{ background: rgba(0,0,0,.05); }
+.seg .seg-btn.is-on{ background: var(--s-90); color: var(--p-10); }
+.seg .seg-btn:disabled{ opacity:.4; cursor:default; }
+.seg .seg-btn svg{ width: 16px; height: 16px; }
+
+.stepper{ display:inline-flex; align-items:center; height: 32px; border:1px solid var(--outline); border-radius: var(--r-full); padding: 0 4px; background: var(--surface-container-low); }
+.stepper button{ width: 26px; height: 26px; border-radius:50%; color: var(--on-surface-variant); }
+.stepper button:hover{ background: rgba(0,0,0,.06); }
+.stepper .val{ min-width: 28px; text-align:center; font-variant-numeric: tabular-nums; font-weight:500; color: var(--on-surface); }
+.stepper .unit{ font-size:11px; color: var(--on-surface-variant); margin-left:2px; }
+
+.color-trigger{ display:inline-flex; align-items:center; gap:6px; height: 32px; padding: 0 8px; border-radius: var(--r-full); border:1px solid var(--outline); background: var(--surface-container-low); color: var(--on-surface-variant); font-size:13px; font-weight:500; }
+.color-trigger:hover{ background: rgba(0,0,0,.04); }
+.color-trigger > svg{ width: 18px; height: 18px; color: var(--on-surface-variant); }
+.color-trigger .chip{ width: 16px; height: 16px; border-radius: 4px; background: #1b1b1f; border: 1px solid rgba(0,0,0,.15); }
+.color-trigger svg.caret{ width: 16px; height: 16px; color: var(--on-surface-variant); }
+.color-pop{ position: absolute; top: 100%; margin-top: 6px; left: 0; background: var(--surface-container-low); border-radius: var(--r-md); padding: 12px; box-shadow: var(--elev-3); border: 1px solid var(--outline-variant); z-index: 8; display: none; width: 240px; }
+.color-pop.is-open{ display:block; }
+.color-pop h4{ margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--on-surface-variant); font-weight: 500; }
+.color-pop .row{ display:grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 12px; }
+.color-pop .row:last-child{ margin-bottom: 0; }
+.sw{ width: 100%; aspect-ratio: 1/1; border-radius: 8px; cursor: pointer; border: 1px solid rgba(0,0,0,.08); transition: transform .12s, box-shadow .12s; }
+.sw:hover{ transform: scale(1.08); box-shadow: var(--elev-1); }
+.sw.is-on{ outline: 2px solid var(--primary); outline-offset: 2px; }
+.color-pop .custom{ display:flex; gap:8px; align-items:center; margin-top: 10px; padding-top:10px; border-top:1px solid var(--outline-variant); }
+.color-pop .custom input[type="color"]{ width: 30px; height: 30px; border:0; padding:0; background:none; border-radius: 8px; cursor:pointer; }
+.color-pop .custom label{ font-size: 12px; color: var(--on-surface-variant); }
+.color-pop .custom button{ margin-left:auto; font-size:12px; color: var(--primary); font-weight:500; padding:4px 8px; border-radius:var(--r-sm); }
+.color-pop .custom button:hover{ background: rgba(11,87,208,.08); }
+
+.field{ position: relative; height: 32px; border:1px solid var(--outline); border-radius: var(--r-sm); background: var(--surface-container-lowest); padding: 0 10px; display:inline-flex; align-items:center; gap:6px; }
+.field:hover{ border-color: var(--on-surface-variant); }
+.field:focus-within{ border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.field select{ appearance: none; background: transparent; border: 0; outline: none; height: 100%; padding-right: 22px; font-size: 12px; min-width: 110px; }
+.field .caret{ position:absolute; right:8px; top:50%; transform:translateY(-50%); width: 16px; height: 16px; color: var(--on-surface-variant); pointer-events:none; }
+
+.chip{ display:inline-flex; align-items:center; gap:6px; height: 28px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--outline); background: var(--surface-container-lowest); font-size: 11.5px; color: var(--on-surface-variant); font-weight: 500; }
+.chip.is-on{ background: var(--p-90); color: var(--p-10); border-color: transparent; }
+.chip svg{ width:16px; height:16px; }
+
+/* --- 3. Main canvas layout --- */
+.main{ display: grid; grid-template-columns: minmax(360px, 28%) minmax(0, 1fr); min-height: 0; background: var(--surface); }
+.pane-edit{ display:flex; flex-direction: column; border-right: 1px solid var(--outline-variant); background: var(--surface-container-lowest); }
+.pane-head{ display:flex; align-items:center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--outline-variant); color: var(--on-surface-variant); font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.pane-head svg{ width:16px; height:16px; }
+.pane-head .spacer{ flex:1; }
+.pane-head .lines{ font-variant-numeric: tabular-nums; color: var(--n-50); font-weight: 400; text-transform: none; letter-spacing: 0; }
+#md{ flex: 1; min-height: 0; width: 100%; border: 0; outline: none; resize: none; padding: 18px 18px 24px; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; color: var(--n-10); background: var(--surface-container-lowest); tab-size: 2; }
+#md:focus{ background: var(--n-100); }
+
+.pane-prev{ display:grid; grid-template-rows: 1fr 168px; grid-template-columns: minmax(0, 1fr); min-height: 0; min-width: 0; background: var(--surface); }
+.stage{ position: relative; display:flex; align-items:center; justify-content:center; padding: 28px 40px 20px; min-height: 0; min-width: 0; background: var(--surface); }
+#slides{ min-width: 0; max-width: 100%; }
+.stage .badge{ position: absolute; top: 16px; left: 28px; font-size: 12px; color: var(--on-surface-variant); font-weight: 400; font-variant-numeric: tabular-nums; }
+.stage .badge .num-pill{ color: var(--on-surface); font-weight: 500; }
+.stage .stage-tools{ position: absolute; top: 14px; right: 24px; display:flex; gap: 4px; }
+.stage .hint{ position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--on-surface-variant); background: var(--surface-container-high); padding: 4px 12px; border-radius: var(--r-full); opacity: 0; transition: opacity .2s; pointer-events: none; white-space:nowrap; }
+.stage.editing .hint{ opacity: 1; }
+.slide-card{ aspect-ratio: 16/9; width: min(100%, calc((100vh - 64px - 28px - 168px - 60px) * 16/9)); background: #fff; border-radius: var(--r-lg); box-shadow: var(--elev-3); position: relative; overflow: hidden; outline: 2px solid transparent; transition: outline-color .2s; }
+.slide-card.is-active{ outline-color: var(--p-40); }
+.slide-card svg{ width: 100%; height: 100%; display:block; }
+.slide-card.overflow{ outline-color: var(--err-40); }
+#slides{ width:100%; display:flex; justify-content:center; align-items:center; }
+.slide .num{ display:none; }
+
+.filmstrip{ display:flex; align-items:center; gap: 4px; padding: 12px 14px 16px; background: var(--surface-container-low); border-top: 1px solid var(--outline-variant); position: relative; }
+.filmstrip .nav{ width: 36px; height: 36px; border-radius:50%; display:grid; place-items:center; background: var(--surface-container-highest); color: var(--on-surface-variant); box-shadow: var(--elev-1); flex-shrink:0; }
+.filmstrip .nav:hover{ background: var(--p-90); color: var(--p-10); }
+.filmstrip .nav svg{ width:18px; height:18px; }
+.thumbs{ flex: 1; min-width: 0; display:flex; align-items:center; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 8px; }
+.thumbs::-webkit-scrollbar{ height: 6px; }
+.thumbs::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 3px; }
+.thumb{ flex: 0 0 auto; width: 196px; aspect-ratio: 16/9; background: #fff; border-radius: var(--r-md); box-shadow: var(--elev-1); cursor: pointer; position: relative; overflow: hidden; transition: box-shadow .15s, transform .15s; }
+.thumb:hover{ box-shadow: var(--elev-2); transform: translateY(-2px); }
+.thumb.is-active{ outline: 2px solid var(--p-40); outline-offset: 2px; }
+.thumb-num{ position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; display:grid; place-items:center; font-size: 11px; font-weight: 500; z-index:1; }
+.thumb.is-active .thumb-num{ background: var(--p-40); }
+.thumb svg{ width:100%; height:100%; display:block; }
+
+/* --- 4. Bottom status bar --- */
+.statusbar{ display:flex; align-items:center; gap: 16px; padding: 0 16px; background: var(--surface-container); border-top: 1px solid var(--outline-variant); font-size: 11.5px; color: var(--on-surface-variant); }
+.statusbar .grow{ flex: 1; }
+.statusbar .sb-item{ display:inline-flex; align-items:center; gap:6px; }
+
+/* --- Settings side sheet --- */
+.scrim{ position: fixed; inset: 0; background: rgba(0,0,0,.32); opacity: 0; pointer-events: none; transition: opacity .25s var(--easing-std); z-index: 9; }
+.scrim.is-open{ opacity: 1; pointer-events: auto; }
+.sheet{ position: fixed; top: 0; right: 0; height: 100%; width: 400px; background: var(--surface-container-low); box-shadow: var(--elev-5); transform: translateX(110%); transition: transform .35s var(--easing-emph); z-index: 10; display:flex; flex-direction: column; border-left: 1px solid var(--outline-variant); }
+.sheet.is-open{ transform: translateX(0); }
+.sheet-head{ display:flex; align-items:center; gap: 10px; padding: 14px 12px 14px 20px; border-bottom: 1px solid var(--outline-variant); }
+.sheet-head h2{ margin: 0; font-size: 18px; font-weight: 500; letter-spacing:-.01em; flex:1; }
+.sheet-body{ flex: 1; overflow-y: auto; padding: 8px 0 24px; }
+.sect{ padding: 16px 20px; border-bottom: 1px solid var(--outline-variant); }
+.sect:last-child{ border-bottom: 0; }
+.sect h3{ margin: 0 0 12px; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--on-surface-variant); }
+.row{ display:flex; align-items:center; gap: 12px; padding: 8px 0; }
+.row .label{ flex: 1; font-size: 14px; }
+.row .desc{ font-size: 12px; color: var(--on-surface-variant); margin-top:2px; }
+.switch{ position: relative; width: 52px; height: 32px; border-radius: 16px; background: var(--surface-container-highest); border: 2px solid var(--outline); cursor: pointer; transition: background .2s, border-color .2s; flex-shrink: 0; }
+.switch::after{ content:""; position: absolute; top: 50%; left: 6px; transform: translate(0, -50%); width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: transform .2s var(--easing-emph), background .2s, width .2s, height .2s; }
+.switch.is-on{ background: var(--p-40); border-color: var(--p-40); }
+.switch.is-on::after{ background: #fff; width: 22px; height: 22px; transform: translate(22px, -50%); }
+.txt-field{ border: 1px solid var(--outline); border-radius: var(--r-sm); background: var(--surface-container-lowest); padding: 10px 12px; }
+.txt-field:focus-within{ border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.txt-field textarea{ width: 100%; min-height: 120px; resize: vertical; border:0; outline: none; background: transparent; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: var(--on-surface); }
+.btn-danger{ display:inline-flex; align-items:center; gap:8px; height: 40px; padding: 0 18px; border-radius: var(--r-full); background: var(--err-90); color: var(--err-40); font-weight: 500; font-size: 13px; }
+.btn-danger:hover{ background: #ffc4be; }
+.btn-danger svg{ width: 18px; height: 18px; }
+
+/* --- Preview slide internals (JS contract) --- */
+.bhit{ fill: transparent; cursor: pointer; pointer-events: all; }
+.ehit{ fill: transparent; pointer-events: none; }
+.blk:not(.charmode):hover .bhit{ fill: rgba(11,87,208,.05); }
+.blk.charmode .ehit{ pointer-events: all; cursor: move; stroke: #0a8754; stroke-width: 0.8; stroke-dasharray: 2 2; }
+.blk.charmode .ehit:hover{ fill: rgba(10,135,84,.08); }
+.legacy-hidden{ display: none !important; }
 </style>
 </head>
 <body>
-  <header>
-    <a class="brand" href="/" title="トップへ"><img src="/logo.svg" alt="md-slides" /></a>
-    <nav>
-      <a href="/preview" class="active">作成</a>
-    </nav>
-    <span class="sp"></span>
-    <button id="resetSel" class="tbtn">選択リセット</button>
-    <button id="resetAll" class="tbtn">全リセット</button>
-    <button id="save" class="tbtn">位置を保存</button>
-    <button id="dl" style="padding:0.45em 1.1em;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">pptx ダウンロード</button>
+
+<!-- Inline SVG icon symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-download" viewBox="0 0 24 24"><path fill="currentColor" d="M12 16 6 10l1.4-1.4L11 12.2V4h2v8.2l3.6-3.6L18 10zM5 20v-4h2v2h10v-2h2v4z"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path fill="currentColor" d="M21 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12zM7 5v4h8V5zm5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.66 8.48a.5.5 0 0 0 .12.64L4.81 10.7c-.04.31-.06.62-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.41.32.61.22l2.39-.96c.49.39 1.03.7 1.62.94l.36 2.54c.05.24.25.42.49.42h3.84c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.62-.94l2.39.96c.2.1.48.01.61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="m19 6.41-1.41-1.42L12 10.59 6.41 4.99 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+    <symbol id="i-text-color" viewBox="0 0 24 24"><path fill="currentColor" d="M2 20h20v3H2zM5.5 17h2.4l1.1-2.8h5l1.1 2.8h2.4l-5-13h-2zm4.2-4.7L11.5 7l1.8 5.3z"/></symbol>
+    <symbol id="i-style" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3 4 7v6c0 4.55 3.05 8.78 8 10 4.95-1.22 8-5.45 8-10V7zm0 8v8.93C8.45 19.04 6 15.66 6 13V8.3l6-2.7v5.4z"/></symbol>
+    <symbol id="i-edit-doc" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM6 20V4h7v5h5v11z"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path fill="currentColor" d="M8.6 16.6 13.2 12 8.6 7.4 10 6l6 6-6 6z"/></symbol>
+    <symbol id="i-caret-down" viewBox="0 0 24 24"><path fill="currentColor" d="m7 10 5 5 5-5z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M11 13H5v-2h6V5h2v6h6v2h-6v6h-2z"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path fill="currentColor" d="m12 4-1.4 1.4 5.6 5.6H4v2h12.2L10.6 18.6 12 20l8-8z" transform="scale(-1,1) translate(-24,0)"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path fill="currentColor" d="m12 4-1.4 1.4 5.6 5.6H4v2h12.2L10.6 18.6 12 20l8-8z"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path fill="currentColor" d="m4 12 1.4 1.4 5.6-5.6V20h2V7.8l5.6 5.6L20 12l-8-8z"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path fill="currentColor" d="m4 12 1.4-1.4 5.6 5.6V4h2v12.2l5.6-5.6L20 12l-8 8z"/></symbol>
+    <symbol id="i-none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 0 1-6.32-12.9L17.9 18.32A7.95 7.95 0 0 1 12 20m6.32-3.1L6.1 4.68A8 8 0 0 1 18.32 16.9"/></symbol>
+    <symbol id="i-clear" viewBox="0 0 24 24"><path fill="currentColor" d="M3.27 5 2 6.27l6.97 6.97L6.5 18h3l1.57-3.66L16.73 20 18 18.73zM6 5l2 2h.5l-.6 1.4 1.55 1.55L11 6h3v3.5l1.36 1.36L15.5 5z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H8V7h11z"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5V2L7 7l5 5V8a6 6 0 1 1-5.9 7H4.07A8 8 0 1 0 12 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zm-2-12v2h3v3h2V5z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- APP BAR -->
+  <header class="appbar">
+    <a class="brand" href="/" title="トップへ">
+      <div class="brand-mark">m</div>
+      <div class="brand-wm"><em>md</em>-slides</div>
+    </a>
+    <div class="grow"></div>
+    <div id="status" class="status-pill" title="状態"><span class="dot"></span><span id="statusText">読み込み中…</span></div>
+    <div class="grow"></div>
+    <button id="save" class="icon-btn" title="位置を保存"><svg><use href="#i-save"/></svg></button>
+    <button id="resetSel" class="icon-btn" title="選択をリセット"><svg><use href="#i-reset"/></svg></button>
+    <button id="openSettings" class="icon-btn" title="設定"><svg><use href="#i-settings"/></svg></button>
+    <div class="divider-v"></div>
+    <button id="dl" class="btn-filled" title="編集可能な .pptx をダウンロード"><svg><use href="#i-download"/></svg>pptx ダウンロード</button>
   </header>
-  <div class="wrap">
-    <div class="left">
-      <textarea id="md" spellcheck="false"></textarea>
-      <div class="hint">MDを編集するとリアルタイムでプレビュー。.mdファイルをドロップしても読み込めます。未登録文字は□で表示。</div>
-    </div>
-    <div class="right">
-      <div id="fmtbar" class="fmtbar">
-        <span class="fmt-label">書式:</span>
-        <button id="fmtBold" class="fbtn" title="太字 **…**"><b>B</b></button>
-        <span class="fmt-sep"></span>
-        <span class="fmt-label">色:</span>
-        <span class="fmt-colorwrap">
-          <button id="fmtColorBtn" class="fbtn"><span id="fmtColorChip" class="cp-chip"></span>色 ▾</button>
-          <div id="fmtColorPop" class="color-pop" style="display:none">
-            <div class="cp-sec">標準の色</div>
-            <div class="cp-grid" id="cpStd"></div>
-            <div class="cp-sec">グレースケール</div>
-            <div class="cp-grid gray" id="cpGray"></div>
-            <div class="cp-foot">
-              <label class="cp-custom">その他の色 <input type="color" id="fmtColor" value="#000000"></label>
-              <button id="fmtClsClear" class="fbtn">色なし</button>
-            </div>
+
+  <!-- FORMAT BAR (contextual, floating) -->
+  <nav id="fmtbar" class="fmtbar" aria-label="書式ツールバー" role="toolbar">
+    <div class="group">
+      <button id="fmtBold" class="tgl" title="太字"><span class="i-bold">B</span></button>
+      <div style="position:relative">
+        <button id="fmtColorBtn" class="color-trigger" title="文字色" aria-haspopup="true">
+          <svg><use href="#i-text-color"/></svg>
+          <span id="fmtColorChip" class="chip" style="border-radius:4px;width:16px;height:16px;padding:0;background:#1b1b1f;border:1px solid rgba(0,0,0,.15)"></span>
+          <svg class="caret"><use href="#i-caret-down"/></svg>
+        </button>
+        <input id="fmtColor" type="color" value="#000000" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
+        <div id="fmtColorPop" class="color-pop" role="dialog">
+          <h4>標準カラー</h4>
+          <div id="cpStd" class="row"></div>
+          <h4>グレー階調</h4>
+          <div id="cpGray" class="row"></div>
+          <div class="custom">
+            <label for="customPick">カスタム</label>
+            <input id="customPick" type="color" value="#000000" />
+            <button id="fmtClsClear" title="色なし(既定)に戻す">色なし</button>
           </div>
-        </span>
-        <span class="fmt-sep"></span>
-        <span class="fmt-label">サイズ</span><span id="fmtRole" class="fmt-role">本文</span>
-        <button id="fmtSizeDown" class="fbtn">−</button><span id="fmtSizeVal">–</span><button id="fmtSizeUp" class="fbtn">＋</button>
-        <span class="fmt-sep"></span>
-        <span class="fmt-label">フォント</span>
-        <select id="fontSel" class="fbtn" style="cursor:pointer" title="未選択=文書全体 / ブロック・文字選択中=その対象だけ">
+        </div>
+      </div>
+      <div class="stepper" title="文字サイズ">
+        <button id="fmtSizeDown" aria-label="小さく"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M5 11h14v2H5z"/></svg></button>
+        <span id="fmtSizeVal" class="val">–</span><span class="unit">pt</span>
+        <button id="fmtSizeUp" aria-label="大きく"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
+      </div>
+      <div class="field">
+        <select id="fontSel" aria-label="フォント">
           <option value="">既定（ゴシック Noto Sans JP）</option>
           <option value="Noto Sans JP">ゴシック (Noto Sans JP)</option>
           <option value="Noto Serif JP">明朝 (Noto Serif JP)</option>
           <option value="M PLUS Rounded 1c">丸ゴシック (M PLUS Rounded 1c)</option>
         </select>
-        <span class="fmt-sep"></span>
-        <span class="fmt-label">登場</span>
-        <button id="animLeft" class="fbtn" title="左から登場">←</button>
-        <button id="animUp" class="fbtn" title="上から登場">↑</button>
-        <button id="animDown" class="fbtn" title="下から登場">↓</button>
-        <button id="animRight" class="fbtn" title="右から登場">→</button>
-        <button id="animNone" class="fbtn" title="このブロックは登場アニメなし">なし</button>
-        <span id="fmtHint" class="fmt-hint"></span>
-      </div>
-      <div id="missingBar" class="missing-bar" style="display:none"></div>
-      <div id="status"></div>
-      <div id="slides"></div>
-    </div>
-  </div>
-  <div id="qrOverlay" class="qr-overlay" style="display:none">
-    <div class="qr-card">
-      <h2>未登録の文字があります</h2>
-      <p class="qr-missing"><span id="qrCount"></span>: <span id="qrMissingList" class="mchars"></span></p>
-      <div id="qrCode" class="qr-img"></div>
-      <p class="qr-help">iPad のカメラ／QRリーダーでこのコードを読み取り、手書き登録してください。<br>登録が終わったら「登録完了」を押すと再チェックします。</p>
-      <p id="qrUrl" class="qr-url"></p>
-      <div class="qr-btns">
-        <button id="qrDone" class="qr-primary">登録完了（再チェック）</button>
-        <button id="qrSkip">このまま □ で続ける</button>
+        <svg class="caret"><use href="#i-caret-down"/></svg>
       </div>
     </div>
-  </div>
-  <section class="llm-section">
-    <details>
-      <summary>AI にスライドを作らせる（記法ルールをコピー）</summary>
-      <div class="llm-body">
-        <div class="row">
-          <span class="desc">下のテキストを ChatGPT / Claude に貼り付け、作りたい内容を伝えると、このツール用の Markdown が得られます。それを上のエディタに貼り付けてください。</span>
-          <span style="flex:1"></span>
-          <button class="copybtn" id="copyLlm">コピー</button>
+    <div class="divider-v"></div>
+    <div class="group"><button id="fmtRole" class="chip is-on" title="ブロックの役割"><svg><use href="#i-style"/></svg><span id="fmtRoleLabel">本文</span></button></div>
+    <div class="divider-v"></div>
+    <div class="group">
+      <span class="group-label">登場</span>
+      <div class="seg" role="group" aria-label="登場アニメ方向">
+        <button id="animLeft"  class="seg-btn" title="左から"><svg><use href="#i-arrow-left"/></svg></button>
+        <button id="animUp"    class="seg-btn" title="上から"><svg><use href="#i-arrow-up"/></svg></button>
+        <button id="animDown"  class="seg-btn" title="下から"><svg><use href="#i-arrow-down"/></svg></button>
+        <button id="animRight" class="seg-btn" title="右から"><svg><use href="#i-arrow-right"/></svg></button>
+        <button id="animNone"  class="seg-btn" title="なし"><svg><use href="#i-none"/></svg></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+    <section class="pane-edit" aria-label="Markdown エディタ">
+      <div class="pane-head"><svg><use href="#i-edit-doc"/></svg>Markdown<span class="spacer"></span><span class="lines" id="mdLines"></span></div>
+      <textarea id="md" spellcheck="false"></textarea>
+    </section>
+
+    <section class="pane-prev">
+      <div class="stage" id="stage">
+        <div class="badge"><span class="num-pill" id="badgeNum">–</span> / <span id="badgeTotal">–</span></div>
+        <div class="stage-tools">
+          <button class="icon-btn" id="prevSlide" title="前のスライド"><svg><use href="#i-chevron-left"/></svg></button>
+          <button class="icon-btn" id="nextSlide" title="次のスライド"><svg><use href="#i-chevron-right"/></svg></button>
         </div>
-        <textarea id="llmSpec" readonly spellcheck="false"></textarea>
+        <div id="slides"></div>
+        <div class="select-hint" id="selectHint">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M13.64 21.97c-.16 0-.32-.04-.47-.11l-3.18-1.57-3.91 3.71v-13l13 9.62-4.5.71 2.36 4.79c.17.35.02.78-.34.96-.1.05-.21.07-.32.07z"/></svg>
+          スライドの要素をクリックして編集
+        </div>
+        <div class="hint" id="editHint"></div>
       </div>
-    </details>
-  </section>
-  <script type="module" src="/js/preview.js?v=20260520b"></script>
+      <div class="filmstrip">
+        <button class="nav" id="filmPrev" title="前へ"><svg><use href="#i-chevron-left"/></svg></button>
+        <div class="thumbs" id="thumbs"></div>
+        <button class="nav" id="filmNext" title="次へ"><svg><use href="#i-chevron-right"/></svg></button>
+      </div>
+    </section>
+  </main>
+
+  <!-- STATUS BAR -->
+  <footer class="statusbar">
+    <span class="sb-item" id="sbSlides">–</span>
+    <span class="sb-item" id="sbLines">–</span>
+    <span class="grow"></span>
+    <span class="sb-item">md-slides</span>
+  </footer>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-label="設定">
+  <div class="sheet-head">
+    <button class="icon-btn" id="closeSettings" title="閉じる"><svg><use href="#i-close"/></svg></button>
+    <h2>設定</h2>
+  </div>
+  <div class="sheet-body">
+    <div class="sect">
+      <h3>外観 / フォント</h3>
+      <div class="row">
+        <div><div class="label">既定フォント</div><div class="desc">文書全体の本文フォント (frontmatter font:)</div></div>
+        <div class="field" style="height:38px">
+          <select id="setDefaultFont">
+            <option value="">ゴシック (Noto Sans JP)</option>
+            <option value="Noto Serif JP">明朝 (Noto Serif JP)</option>
+            <option value="M PLUS Rounded 1c">丸ゴシック (M PLUS Rounded 1c)</option>
+          </select>
+          <svg class="caret"><use href="#i-caret-down"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="sect">
+      <h3>アニメーション</h3>
+      <div class="row">
+        <div><div class="label">登場アニメ ON</div><div class="desc">既定で左→右ワイプ。OFFでも個別指定は可能</div></div>
+        <div class="switch is-on" id="setAnim" role="switch" aria-checked="true"></div>
+      </div>
+    </div>
+    <div class="sect">
+      <h3>AI 記法</h3>
+      <p style="margin:0 0 10px;font-size:12px;color:var(--on-surface-variant);line-height:1.5">LLM(ChatGPT/Claude等)に貼ると md-slides 用の Markdown を作れます。</p>
+      <div class="txt-field"><textarea id="llmSpec" spellcheck="false"></textarea></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="copyLlm" class="btn-tonal"><svg><use href="#i-copy"/></svg>記法をコピー</button>
+      </div>
+    </div>
+    <div class="sect">
+      <h3>危険な操作</h3>
+      <div class="row" style="padding-top:0">
+        <div><div class="label">全リセット</div><div class="desc">全スライドの位置・色・サイズ・登場を初期化</div></div>
+        <button id="resetAll" class="btn-danger"><svg><use href="#i-reset"/></svg>全リセット</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- LEGACY HIDDEN (JS contract) -->
+<div class="legacy-hidden">
+  <div id="missingBar"></div>
+  <div id="qrOverlay"><div id="qrCode"></div><div id="qrCount"></div><ul id="qrMissingList"></ul><input id="qrUrl" /><button id="qrDone"></button><button id="qrSkip"></button></div>
+</div>
+
+<script type="module" src="/js/preview.js?v=mat1"></script>
 </body>
 </html>

@@ -21,6 +21,10 @@ let lastResult = null;
 let overrides = {};               // { slideIdx: { blockIdx: {dx,dy,s, els:{elIdx:{dx,dy,s}}} } }
 let selected = null;              // { slide, block, el(任意) }
 let charMode = null;              // 文字編集中のブロック { slide, block }
+let currentSlide = 0;             // ステージに表示中のスライド index
+const statusTextEl = document.getElementById("statusText");
+const $ = (id) => document.getElementById(id);
+const setText = (id, t) => { const e = $(id); if (e) e.textContent = t; };
 // Undo/Redo (インデックス方式の履歴: history[histIdx] が現在状態)
 let history = [], histIdx = -1, dragSnapshot = null;
 const snapshot = () => JSON.parse(JSON.stringify(overrides));
@@ -46,9 +50,8 @@ function redo() {
 }
 
 function setStatus(cls, msg) {
-  statusEl.className = `status ${cls}`;
-  statusEl.textContent = msg;
-  statusEl.style.display = msg ? "block" : "none";
+  if (statusTextEl) statusTextEl.textContent = msg;
+  if (statusEl) statusEl.className = "status-pill" + (cls === "err" ? " err" : cls === "warn" ? " warn" : "");
 }
 
 // ---- 未登録文字の登録導線 (バー + 全画面QR) ----
@@ -134,35 +137,68 @@ function update(opts) {
   // overrides の真実は MD frontmatter。毎回そこから同期する。
   overrides = result.doc.meta.overrides || {};
   const { doc, slides, color, brushWidthCm, slideWCm, slideHCm, mode, fontFamily, anim } = result;
-  if (doc.errors.length) setStatus("err", "ERROR:\n" + doc.errors.join("\n"));
-  else if (!slides.length) setStatus("warn", "スライドがありません (# 見出しが必要)");
-  else setStatus("ok", `${slides.length} スライド`);
+  const n = slides.length;
+  if (currentSlide >= n) currentSlide = Math.max(0, n - 1);
+  if (doc.errors.length) setStatus("err", "エラー: " + doc.errors.join(" / "));
+  else if (!n) setStatus("warn", "# 見出しでスライドを開始");
+  else setStatus("ok", `${n} スライド`);
 
-  slidesEl.innerHTML = slides.map((s, i) => {
-    const startLine = (doc.slides[i] && doc.slides[i].headingSrc && doc.slides[i].headingSrc[0]) || 0;
-    return `<div class="slide${s.overflow ? " overflow" : ""}" data-line="${startLine}"><div class="num">スライド ${i + 1}` +
-    (s.overflow ? `<span class="ovwarn">はみ出し（固定サイズのため自動縮小しません）</span>` : "") +
-    `</div>` +
-    (mode === "text"
-      ? slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack }, overrides[i])
-      : slideToSvgEditable(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, brushWidthCm }, overrides[i])) +
-    `</div>`;
-  }).join("");
-  updateActiveSlide();
+  // ステータスバー / バッジ / 行数
+  const lines = (mdEl.value.match(/\n/g) || []).length + 1;
+  setText("badgeNum", n ? String(currentSlide + 1).padStart(2, "0") : "–");
+  setText("badgeTotal", n ? String(n).padStart(2, "0") : "–");
+  setText("sbSlides", `${n} スライド`);
+  setText("sbLines", `Markdown ${lines} 行`);
+  setText("mdLines", `${lines} 行`);
 
-  // 各スライドSVGにハンドラ
-  slidesEl.querySelectorAll(".slide").forEach((slideDiv, si) => {
-    const svg = slideDiv.querySelector("svg");
-    svg.addEventListener("pointerdown", (e) => onSvgPointerDown(e, si, svg));
-  });
-  // char mode のブロックに class 付与
-  if (charMode) {
-    const sd = slidesEl.querySelectorAll(".slide")[charMode.slide];
-    const g = sd && sd.querySelector(`.blk[data-block="${charMode.block}"]`);
-    if (g) g.classList.add("charmode");
+  const stEl = $("stage");
+  if (stEl) stEl.classList.toggle("has-selection", !!selected);
+
+  // サムネイル (全スライド)
+  const thumbsEl = $("thumbs");
+  if (thumbsEl) {
+    thumbsEl.innerHTML = slides.map((s, i) =>
+      `<div class="thumb${i === currentSlide ? " is-active" : ""}" data-idx="${i}"><span class="thumb-num">${i + 1}</span>` +
+      slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack, thumb: true, grid: false }) +
+      `</div>`).join("");
+    thumbsEl.querySelectorAll(".thumb").forEach((t) => t.addEventListener("click", () => setCurrentSlide(parseInt(t.dataset.idx, 10))));
   }
-  if (selected) drawSelection();
+
+  // アクティブスライド (16:9 カード)
+  const s = slides[currentSlide];
+  if (s) {
+    slidesEl.innerHTML = `<div class="slide slide-card is-active${s.overflow ? " overflow" : ""}" data-index="${currentSlide}">` +
+      slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack }, overrides[currentSlide]) +
+      `</div>`;
+    const svg = slidesEl.querySelector("svg");
+    if (svg) svg.addEventListener("pointerdown", (e) => onSvgPointerDown(e, currentSlide, svg));
+    if (charMode && charMode.slide === currentSlide) {
+      const g = slidesEl.querySelector(`.blk[data-block="${charMode.block}"]`);
+      if (g) g.classList.add("charmode");
+    }
+  } else {
+    slidesEl.innerHTML = "";
+  }
+  if (selected && selected.slide === currentSlide) drawSelection(); else hideFmtbar();
   updateFmtbar();
+}
+
+// フィルムストリップ/ナビからスライド切替。選択は解除。
+function setCurrentSlide(i) {
+  const n = lastResult ? lastResult.slides.length : 0;
+  i = Math.max(0, Math.min(n - 1, i));
+  if (i === currentSlide && lastResult) return;
+  currentSlide = i;
+  selected = null; charMode = null;
+  update();
+  syncMdToSlide(i);
+}
+function syncMdToSlide(i) {
+  if (document.activeElement === mdEl) return;
+  const sl = lastResult && lastResult.doc.slides[i];
+  const line = (sl && sl.headingSrc && sl.headingSrc[0]) || 0;
+  const total = (mdEl.value.match(/\n/g) || []).length + 1;
+  mdEl.scrollTop = Math.max(0, (total > 1 ? line / total : 0) * (mdEl.scrollHeight - mdEl.clientHeight));
 }
 
 // 登場アニメの向き (ブロック単位 override.anim)。同じ向きを再クリックで既定に戻す。
@@ -177,7 +213,7 @@ function updateAnimBtns(enabled, curDir) {
     const b = document.getElementById(id);
     if (!b) continue;
     b.disabled = !enabled; b.style.opacity = enabled ? "1" : "0.4";
-    b.classList.toggle("active", enabled && curDir === dir);
+    b.classList.toggle("is-on", enabled && curDir === dir);
   }
 }
 
@@ -193,32 +229,6 @@ function syncFontSel() {
   }
   fontSel.value = fv;
 }
-
-// 表示中スライドを薄い青で強調し、左MDをそのスライドの先頭行へスクロール同期。
-let lastActiveSlide = -1;
-function updateActiveSlide() {
-  const slideEls = slidesEl.querySelectorAll(".slide");
-  if (!slideEls.length) return;
-  const refY = 150; // ヘッダー下の基準線
-  let active = 0;
-  for (let i = 0; i < slideEls.length; i++) {
-    if (slideEls[i].getBoundingClientRect().top <= refY) active = i; else break;
-  }
-  slideEls.forEach((el, i) => el.classList.toggle("active", i === active));
-  if (active !== lastActiveSlide) { lastActiveSlide = active; syncMdScrollToSlide(slideEls[active]); }
-}
-function syncMdScrollToSlide(slideEl) {
-  if (!slideEl || document.activeElement === mdEl) return; // 編集中はスクロールを奪わない
-  const line = parseInt(slideEl.dataset.line || "0", 10);
-  const total = (mdEl.value.match(/\n/g) || []).length + 1;
-  const frac = total > 1 ? line / total : 0;
-  mdEl.scrollTop = Math.max(0, frac * (mdEl.scrollHeight - mdEl.clientHeight));
-}
-let _activeRaf = 0;
-window.addEventListener("scroll", () => {
-  if (_activeRaf) return;
-  _activeRaf = requestAnimationFrame(() => { _activeRaf = 0; updateActiveSlide(); });
-}, { passive: true });
 
 function enterCharMode(slide, block, g) {
   slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
@@ -287,9 +297,10 @@ function onSvgPointerDown(e, slide, svg) {
     svg.setPointerCapture(e.pointerId); e.preventDefault();
   } else {
     lastTap = null;
-    selected = null; clearSelection();
+    selected = null; clearSelection(); hideFmtbar();
     slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
     charMode = null;
+    updateFmtbar();
   }
 }
 
@@ -360,16 +371,42 @@ document.addEventListener("keydown", (e) => {
 function clearSelection() {
   slidesEl.querySelectorAll(".sel-rect,.handle-rect").forEach((el) => el.remove());
 }
+// フローティング文脈ツールバー: 選択時だけ表示し、選択近傍に配置。
+function hideFmtbar() {
+  const bar = $("fmtbar"); if (bar) bar.classList.remove("is-visible");
+  const pop = $("fmtColorPop"); if (pop) pop.classList.remove("is-open");
+  const stage = $("stage"); if (stage) { stage.classList.remove("editing"); stage.classList.remove("has-selection"); }
+}
+function positionFmtbar(anchorEl) {
+  const bar = $("fmtbar"); if (!bar || !anchorEl) return;
+  const r = anchorEl.getBoundingClientRect();
+  const bw = bar.offsetWidth, bh = bar.offsetHeight, gap = 12;
+  let left = Math.max(12, Math.min(window.innerWidth - bw - 12, r.left + r.width / 2 - bw / 2));
+  let top = r.top - bh - gap, below = false;
+  if (top < 70) { top = r.bottom + gap; below = true; }
+  bar.style.left = left + "px"; bar.style.top = top + "px";
+  bar.classList.toggle("is-below", below);
+}
+function showFmtbar(anchorEl) {
+  const bar = $("fmtbar"); if (!bar) return;
+  const stage = $("stage"); if (stage) { stage.classList.add("editing"); stage.classList.add("has-selection"); }
+  const hint = $("editHint");
+  if (hint) hint.textContent = (selected && selected.el != null)
+    ? "ドラッグで移動 / 別の場所クリックで解除"
+    : "ドラッグで移動 / 角でリサイズ / Shiftで吸着 / ダブルクリックで文字単位編集";
+  bar.classList.add("is-visible");
+  requestAnimationFrame(() => positionFmtbar(anchorEl));
+}
 function applyOv(p, ox, oy, ov) {
   const dx = ov.dx || 0, dy = ov.dy || 0, s = ov.s || 1;
   return [ox + (p[0] - ox) * s + dx, oy + (p[1] - oy) * s + dy];
 }
 function drawSelection() {
   clearSelection();
-  if (!selected || !lastResult) return;
+  if (!selected || !lastResult || selected.slide !== currentSlide) { hideFmtbar(); return; }
   const { slide, block, el } = selected;
-  const slideDiv = slidesEl.querySelectorAll(".slide")[slide];
-  if (!slideDiv) return;
+  const slideDiv = slidesEl.querySelector(".slide");
+  if (!slideDiv) { hideFmtbar(); return; }
   const svg = slideDiv.querySelector("svg");
   const blk = lastResult.slides[slide].blocks[block];
   if (!blk) return;
@@ -407,6 +444,7 @@ function drawSelection() {
     handle.style.cursor = "nwse-resize";
     svg.appendChild(handle);
   }
+  showFmtbar(rect);
   updateFmtbar();
 }
 
@@ -554,15 +592,15 @@ const PALETTE_STD = ["#C00000", "#FF0000", "#FFC000", "#FFFF00", "#92D050", "#00
 const PALETTE_GRAY = ["#000000", "#404040", "#808080", "#BFBFBF", "#D9D9D9", "#FFFFFF"];
 const colorPop = document.getElementById("fmtColorPop");
 const colorBtn = document.getElementById("fmtColorBtn");
-function closeColorPop() { if (colorPop) colorPop.style.display = "none"; }
+function closeColorPop() { if (colorPop) colorPop.classList.remove("is-open"); }
 function refreshSwatchActive() {
   if (!colorPop) return;
   const cur = (currentColorVal() || "").toUpperCase();
-  colorPop.querySelectorAll(".sw").forEach((b) => b.classList.toggle("active", b.dataset.color.toUpperCase() === cur));
-  const ci = document.getElementById("fmtColor");
-  if (ci && /^#[0-9A-F]{6}$/.test(cur)) ci.value = cur;
+  colorPop.querySelectorAll(".sw").forEach((b) => b.classList.toggle("is-on", (b.dataset.color || "").toUpperCase() === cur));
+  const ci = $("fmtColor"); if (ci && /^#[0-9A-F]{6}$/.test(cur)) ci.value = cur;
+  const cp = $("customPick"); if (cp && /^#[0-9A-F]{6}$/.test(cur)) cp.value = cur;
 }
-function openColorPop() { if (colorPop) { colorPop.style.display = "block"; refreshSwatchActive(); } }
+function openColorPop() { if (colorPop) { colorPop.classList.add("is-open"); refreshSwatchActive(); } }
 function buildSwatches(container, colors) {
   if (!container) return;
   container.innerHTML = colors.map((c) => `<button class="sw" data-color="${c}" title="${c}" style="background:${c}"></button>`).join("");
@@ -570,70 +608,52 @@ function buildSwatches(container, colors) {
 }
 function updateFmtbar() {
   if (!fmtbar) return;
-  fmtbar.style.display = "flex"; // 常時表示 (出し入れによるレイアウトのズレを防ぐ)
   syncFontSel();
   const meta = (selected && lastResult) ? blockMeta(selected.slide, selected.block) : null;
   const isEl = !!(meta && selected.el != null);
-  const boldBtn = document.getElementById("fmtBold");
-  const colorBtnEl = document.getElementById("fmtColorBtn");
-  const szBtns = [document.getElementById("fmtSizeUp"), document.getElementById("fmtSizeDown")];
+  const boldBtn = $("fmtBold"), colorBtnEl = $("fmtColorBtn");
+  const szBtns = [$("fmtSizeUp"), $("fmtSizeDown")];
+  const roleLabel = $("fmtRoleLabel"), sizeVal = $("fmtSizeVal");
   const en = (b, on) => { if (b) { b.disabled = !on; b.style.opacity = on ? "1" : "0.4"; } };
-
-  const hintEl = document.getElementById("fmtHint");
-  if (!meta) { // 選択なし → 全部グレーアウト
+  if (!meta) { // 選択なし
     en(boldBtn, false); en(colorBtnEl, false); szBtns.forEach((b) => en(b, false));
-    updateAnimBtns(false);
-    closeColorPop();
-    document.getElementById("fmtRole").textContent = "—";
-    document.getElementById("fmtSizeVal").textContent = "–";
-    if (hintEl) hintEl.textContent = "";
+    updateAnimBtns(false); closeColorPop();
+    if (roleLabel) roleLabel.textContent = "—";
+    if (sizeVal) sizeVal.textContent = "–";
     return;
   }
-  if (hintEl) hintEl.textContent = (selected && selected.el != null)
-    ? "ドラッグで移動 / 別の場所クリックで解除"
-    : "ドラッグで移動 / 角でリサイズ / Shiftで吸着 / ダブルクリックで文字単位編集";
-  // 登場アニメ方向 (ブロック単位)
-  const bAnim = (overrides[selected.slide] && overrides[selected.slide][selected.block]) || {};
-  updateAnimBtns(true, bAnim.anim);
   const bo = overrides[selected.slide] && overrides[selected.slide][selected.block];
-  // 太字: 要素=override / ブロック=単一行テキストのみ MD
+  updateAnimBtns(true, (bo && bo.anim));
   if (isEl) {
     const eo = (bo && bo.els && bo.els[selected.el]) || {};
-    boldBtn.classList.toggle("active", !!eo.bold); en(boldBtn, true);
+    boldBtn.classList.toggle("is-on", !!eo.bold); en(boldBtn, true);
   } else {
     const editable = !!(meta.src && meta.src[1] - meta.src[0] === 1 && TEXT_TYPES.has(meta.type));
     const content = editable ? splitMarker(mdEl.value.split("\n")[meta.src[0]]).content : "";
-    boldBtn.classList.toggle("active", editable && isBold(content)); en(boldBtn, editable);
+    boldBtn.classList.toggle("is-on", editable && isBold(content)); en(boldBtn, editable);
   }
   en(colorBtnEl, true); szBtns.forEach((b) => en(b, true));
-  // 色チップ (現在色) + パレット表示中なら active 更新
   const cur = currentColorVal();
-  const chip = document.getElementById("fmtColorChip");
-  if (chip) chip.style.background = cur || "#000000";
-  if (colorPop && colorPop.style.display === "block") refreshSwatchActive();
-  // サイズ
+  const chip = $("fmtColorChip"); if (chip) chip.style.background = cur || "#1b1b1f";
+  if (colorPop && colorPop.classList.contains("is-open")) refreshSwatchActive();
   const tgt = isEl ? ((bo && bo.els && bo.els[selected.el]) || {}) : (bo || {});
   const basePt = currentPt(lastResult.doc.meta || {}, roleOf(meta.type));
-  document.getElementById("fmtRole").textContent = isEl ? "文字" : ROLE[roleOf(meta.type)].label;
-  document.getElementById("fmtSizeVal").textContent = Math.round(basePt * (tgt.s || 1)) + "pt";
+  if (roleLabel) roleLabel.textContent = isEl ? "文字" : ROLE[roleOf(meta.type)].label;
+  if (sizeVal) sizeVal.textContent = Math.round(basePt * (tgt.s || 1));
 }
 if (fmtbar) {
-  document.getElementById("fmtBold").addEventListener("click", fmtBoldClick);
-  // カラーパレット
-  buildSwatches(document.getElementById("cpStd"), PALETTE_STD);
-  buildSwatches(document.getElementById("cpGray"), PALETTE_GRAY);
-  if (colorBtn) colorBtn.addEventListener("click", (e) => { e.stopPropagation(); if (colorBtn.disabled) return; (colorPop.style.display === "block") ? closeColorPop() : openColorPop(); });
-  const fmtColorEl = document.getElementById("fmtColor");
-  if (fmtColorEl) fmtColorEl.addEventListener("change", () => setColor(fmtColorEl.value)); // その他の色 (カラーコード)
-  const clearBtn = document.getElementById("fmtClsClear");
-  if (clearBtn) clearBtn.addEventListener("click", () => { setColor(null); closeColorPop(); });
-  // ポップアップ外クリックで閉じる
-  document.addEventListener("click", (e) => { if (colorPop && colorPop.style.display === "block" && !e.target.closest(".fmt-colorwrap")) closeColorPop(); });
-  document.getElementById("fmtSizeUp").addEventListener("click", () => changeSize(2));
-  document.getElementById("fmtSizeDown").addEventListener("click", () => changeSize(-2));
+  $("fmtBold").addEventListener("click", fmtBoldClick);
+  buildSwatches($("cpStd"), PALETTE_STD);
+  buildSwatches($("cpGray"), PALETTE_GRAY);
+  if (colorBtn) colorBtn.addEventListener("click", (e) => { e.stopPropagation(); if (colorBtn.disabled) return; colorPop.classList.contains("is-open") ? closeColorPop() : openColorPop(); });
+  const fmtColorEl = $("fmtColor"); if (fmtColorEl) fmtColorEl.addEventListener("change", () => setColor(fmtColorEl.value));
+  const customPick = $("customPick"); if (customPick) customPick.addEventListener("input", () => setColor(customPick.value));
+  const clearBtn = $("fmtClsClear"); if (clearBtn) clearBtn.addEventListener("click", () => { setColor(null); closeColorPop(); });
+  document.addEventListener("click", (e) => { if (colorPop && colorPop.classList.contains("is-open") && !e.target.closest("#fmtColorPop") && !e.target.closest("#fmtColorBtn")) closeColorPop(); });
+  $("fmtSizeUp").addEventListener("click", () => changeSize(2));
+  $("fmtSizeDown").addEventListener("click", () => changeSize(-2));
   for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"], ["none", "animNone"]]) {
-    const b = document.getElementById(id);
-    if (b) b.addEventListener("click", () => setAnimDir(dir));
+    const b = $(id); if (b) b.addEventListener("click", () => setAnimDir(dir));
   }
 }
 
@@ -686,20 +706,45 @@ document.getElementById("dl").addEventListener("click", () => {
   } catch (e) { setStatus("err", "pptx生成エラー: " + (e && e.message ? e.message : e)); console.error(e); }
 });
 
-document.getElementById("save").addEventListener("click", () => {
-  persist();
-  setStatus("ok", "overrides を MD frontmatter に保存しました (このMDをコピー/保管すれば位置調整が残ります。編集中も自動保存されています)");
-});
-document.getElementById("resetSel").addEventListener("click", () => {
+$("save").addEventListener("click", () => { persist(); setStatus("ok", "位置を保存しました"); });
+$("resetSel").addEventListener("click", () => {
   if (selected && overrides[selected.slide] && overrides[selected.slide][selected.block]) {
     if (selected.el != null && overrides[selected.slide][selected.block].els) delete overrides[selected.slide][selected.block].els[selected.el];
     else delete overrides[selected.slide][selected.block];
     persist(); update(); recordHistory();
   }
 });
-document.getElementById("resetAll").addEventListener("click", () => {
+$("resetAll").addEventListener("click", () => {
   overrides = {}; selected = null; charMode = null; persist(); update(); recordHistory();
+  setSettingsOpen(false);
 });
+
+// ---- 設定サイドシート ----
+function setSettingsOpen(v) { $("sheet") && $("sheet").classList.toggle("is-open", v); $("scrim") && $("scrim").classList.toggle("is-open", v); }
+function syncSettings() {
+  if (!lastResult) return;
+  const df = $("setDefaultFont"); if (df) df.value = lastResult.doc.meta.font || "";
+  const sw = $("setAnim"); if (sw) { const on = lastResult.anim !== false; sw.classList.toggle("is-on", on); sw.setAttribute("aria-checked", String(on)); }
+}
+$("openSettings") && $("openSettings").addEventListener("click", () => { syncSettings(); setSettingsOpen(true); });
+$("closeSettings") && $("closeSettings").addEventListener("click", () => setSettingsOpen(false));
+$("scrim") && $("scrim").addEventListener("click", () => setSettingsOpen(false));
+$("setDefaultFont") && $("setDefaultFont").addEventListener("change", (e) => {
+  const v = e.target.value;
+  mdEl.value = v ? setFrontmatterKey(mdEl.value, "font", v) : removeFrontmatterKey(mdEl.value, "font");
+  update(); baselineHistory();
+});
+$("setAnim") && $("setAnim").addEventListener("click", () => {
+  const sw = $("setAnim"); const on = !sw.classList.contains("is-on");
+  sw.classList.toggle("is-on", on); sw.setAttribute("aria-checked", String(on));
+  mdEl.value = on ? removeFrontmatterKey(mdEl.value, "anim") : setFrontmatterKey(mdEl.value, "anim", "off");
+  update(); baselineHistory();
+});
+
+// ---- スライドナビ ----
+["prevSlide", "filmPrev"].forEach((id) => $(id) && $(id).addEventListener("click", () => setCurrentSlide(currentSlide - 1)));
+["nextSlide", "filmNext"].forEach((id) => $(id) && $(id).addEventListener("click", () => setCurrentSlide(currentSlide + 1)));
+window.addEventListener("resize", () => { if (selected) { const r = slidesEl.querySelector(".sel-rect"); if (r) positionFmtbar(r); } });
 
 // ---- QR オーバーレイのボタン ----
 document.getElementById("qrDone").addEventListener("click", recheckDict);

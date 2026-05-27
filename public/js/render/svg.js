@@ -185,6 +185,15 @@ export function slideItemsToSvg(blocks, slideWCm, slideHCm, opts, slideOv) {
     g.push("</g>");
     parts.push(g.join(""));
   }
+  // サムネ用: 当たり判定/グループ無し、描画アイテムだけ (軽量・非インタラクティブ)
+  if (opts.thumb) {
+    for (const blk of blocks) for (const it of (blk.items || [])) {
+      const s = itemToSvg(it, px, defaultColor, fontFamily, null, null, null);
+      if (s) parts.push(s);
+    }
+    parts.push("</svg>");
+    return parts.join("");
+  }
   for (let i = 0; i < blocks.length; i++) {
     const blk = blocks[i];
     const ov = slideOv ? slideOv[i] : null;
