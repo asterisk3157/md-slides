@@ -72,8 +72,6 @@ select,input,textarea{ font: inherit; color: inherit; }
 /* --- 2. Formatting toolbar (floating, contextual) --- */
 .fmtbar{ position: fixed; display:flex; align-items:center; gap: 6px; padding: 6px 10px; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: var(--r-full); box-shadow: var(--elev-3); z-index: 6; overflow: visible; transform-origin: 50% 100%; transform: translateY(8px) scale(.96); opacity: 0; pointer-events: none; transition: transform .18s var(--easing-emph), opacity .14s var(--easing-std); white-space: nowrap; top:0; left:0; }
 .fmtbar.is-visible{ opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
-.fmtbar::after{ content: ""; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: var(--surface-container-lowest); border-right: 1px solid var(--outline-variant); border-bottom: 1px solid var(--outline-variant); z-index: -1; }
-.fmtbar.is-below::after{ bottom: auto; top: -7px; border-right: 0; border-bottom: 0; border-left: 1px solid var(--outline-variant); border-top: 1px solid var(--outline-variant); }
 .fmtbar .divider-v{ height: 22px; margin: 0 2px; }
 .fmtbar .group{ display:flex; align-items:center; gap: 2px; }
 .fmtbar .group-label{ font-size: 11px; color: var(--on-surface-variant); padding: 0 4px 0 6px; }
