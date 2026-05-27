@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 372 64" role="img" aria-label="Tegaki Slides">
+  <defs>
+    <style>
+      .ink { fill: #23235a; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-weight: 600; }
+      .word { font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif; }
+    </style>
+  </defs>
+  <!-- md chip -->
+  <rect x="4" y="18" width="52" height="30" rx="7" fill="none" stroke="#23235a" stroke-width="2.5"/>
+  <text x="30" y="39" text-anchor="middle" class="mono ink" font-size="19">md</text>
+  <!-- hand-drawn arrow -->
+  <path d="M62 33 C 72 27, 80 39, 92 33" fill="none" stroke="#23235a" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M86 28 L93 33 L86 38" fill="none" stroke="#23235a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- pptx chip -->
+  <rect x="100" y="16" width="66" height="34" rx="7" fill="#e8632a"/>
+  <text x="133" y="39" text-anchor="middle" class="mono" font-size="18" fill="#fff">pptx</text>
+  <!-- wordmark -->
+  <text x="182" y="33" class="word ink" font-size="23" font-weight="700">Tegaki Slides</text>
+  <text x="183" y="50" class="word" font-size="12.5" fill="#6b6b86">Markdown を手書きパワポに</text>
+</svg>

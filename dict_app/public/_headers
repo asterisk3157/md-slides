@@ -1,0 +1,4 @@
+# 開発中はブラウザキャッシュ無効化（古いJSを掴まれる事故を防ぐ）
+# 本番運用時はディレクトリ別に適切なキャッシュ戦略へ変更
+/*
+  Cache-Control: no-cache, no-store, must-revalidate

@@ -1,0 +1,313 @@
+{
+"char_metrics": {
+"・": {
+"rel_size": 0.25,
+"valign": "middle"
+},
+"：": {
+"rel_size": 0.25,
+"valign": "middle"
+},
+"；": {
+"rel_size": 0.25,
+"valign": "middle"
+},
+":": {
+"rel_size": 0.25,
+"valign": "middle"
+},
+";": {
+"rel_size": 0.25,
+"valign": "middle"
+},
+"、": {
+"rel_size": 0.35,
+"valign": "bottom"
+},
+"。": {
+"rel_size": 0.35,
+"valign": "bottom"
+},
+",": {
+"rel_size": 0.25,
+"valign": "bottom"
+},
+".": {
+"rel_size": 0.2,
+"valign": "bottom"
+},
+"*": {
+"rel_size": 0.45,
+"valign": "middle"
+},
+"＊": {
+"rel_size": 0.45,
+"valign": "middle"
+},
+"!": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"?": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"！": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"？": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"+": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"-": {
+"rel_size": 0.5,
+"valign": "middle"
+},
+"=": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"×": {
+"rel_size": 0.5,
+"valign": "middle"
+},
+"÷": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"±": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"<": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+">": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"≦": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"≧": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"≠": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"≈": {
+"rel_size": 0.55,
+"valign": "middle"
+},
+"(": {
+"rel_size": 1.0,
+"valign": "top"
+},
+")": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"[": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"]": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"{": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"}": {
+"rel_size": 1.0,
+"valign": "top"
+},
+"「": {
+"rel_size": 0.45,
+"valign": "top"
+},
+"」": {
+"rel_size": 0.45,
+"valign": "bottom"
+},
+"ゃ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ゅ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ょ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"っ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ャ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ュ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ョ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ッ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ぁ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ぃ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ぅ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ぇ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ぉ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ァ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ィ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ゥ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ェ": {
+"rel_size": 0.55,
+"valign": "bottom"
+},
+"ォ": {
+"rel_size": 0.55,
+"valign": "bottom"
+}
+},
+"tight_adv": {},
+"formula_metrics": {
+"(": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.45
+},
+")": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.45
+},
+"[": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.45
+},
+"]": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.45
+},
+"{": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.5
+},
+"}": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.5
+},
+"|": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.3
+},
+"!": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.3
+},
+"！": {
+"rel_size": 1.0,
+"valign": "top",
+"advance": 0.35
+},
+"∫": {
+"rel_size": 1.5,
+"valign": "top"
+},
+"∑": {
+"rel_size": 1.5,
+"valign": "top"
+},
+"√": {
+"rel_size": 1.5,
+"valign": "top"
+},
+"Π": {
+"rel_size": 1.5,
+"valign": "top"
+},
+"∏": {
+"rel_size": 1.5,
+"valign": "top"
+}
+},
+"anchor_nudge": {
+"∫|body": {
+"dx": 0.4,
+"dy": 0.0
+}
+},
+"anchor_pos": {
+"∫|sub": {
+"x": 0.35,
+"y": 0.78
+},
+"∫|sup": {
+"x": 0.55,
+"y": 0.18
+},
+"lim|sub": {
+"x": 0.265,
+"y": 0.61
+}
+},
+"fallback_map": {
+"!": "！",
+"?": "？",
+"(": "（",
+")": "）",
+":": "：",
+";": "；",
+"*": "＊"
+}
+}

@@ -1,0 +1,14 @@
+name = "pptx-auto-dict"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pptx_auto_dict"
+database_id = "94030ed9-7ef3-4124-837d-40f18dd226a6"
+
+[vars]
+# 本番では `wrangler pages secret put` で設定するため、ここには書かない:
+#   BASIC_AUTH_USERS = "alice:sha256hash,bob:sha256hash"
+#   BASIC_AUTH_SALT  = "..."
+# ローカル開発時は環境変数で渡す（README.md 参照）。
