@@ -148,6 +148,15 @@ export function slideItemsToSvg(blocks, slideWCm, slideHCm, opts) {
   const wPx = slideWCm * px, hPx = slideHCm * px;
   const parts = [];
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${wPx.toFixed(0)}" height="${hPx.toFixed(0)}" viewBox="0 0 ${wPx.toFixed(0)} ${hPx.toFixed(0)}" style="background:#fff;border:1px solid #ddd">`);
+  // 編集補助の点線グリッド (1cm方眼, 極薄)。pptx 出力には含まれない。
+  if (opts.grid !== false) {
+    const step = px;
+    const g = ['<g pointer-events="none">'];
+    for (let x = step; x < wPx; x += step) g.push(`<line x1="${x.toFixed(0)}" y1="0" x2="${x.toFixed(0)}" y2="${hPx.toFixed(0)}" stroke="#e3e3e8" stroke-width="1" stroke-dasharray="1 4"/>`);
+    for (let y = step; y < hPx; y += step) g.push(`<line x1="0" y1="${y.toFixed(0)}" x2="${wPx.toFixed(0)}" y2="${y.toFixed(0)}" stroke="#e3e3e8" stroke-width="1" stroke-dasharray="1 4"/>`);
+    g.push("</g>");
+    parts.push(g.join(""));
+  }
   for (const blk of blocks) {
     for (const it of (blk.items || [])) {
       if (it.t === "text") {

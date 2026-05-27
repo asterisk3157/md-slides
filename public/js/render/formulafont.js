@@ -20,6 +20,13 @@ const UNDEROVER = new Set(["∑", "∏", "⋃", "⋂"]); // 上下に極限を�
 const VEC_GAP = 0.16, VEC_HEAD = 0.16, VEC_HALF = 0.07;
 
 const isVar = (s) => /^[A-Za-z]$/.test(s);
+const PRIMES = new Set(["'", '"', "’", "”", "′", "″"]);
+function isPrimeOnly(exprs) {
+  return exprs.length > 0 && exprs.every((e) => e && typeof e.base === "string" && PRIMES.has(e.base) && !e.sub && !e.sup && !e.children && !e.frac && !e.fn_name);
+}
+function primeStr(exprs) {
+  return exprs.map((e) => (e.base === "'" || e.base === "’") ? "′" : (e.base === '"' || e.base === "”") ? "″" : e.base).join("");
+}
 
 function bboxOf(items) {
   let xn = Infinity, yn = Infinity, xx = -Infinity, yx = -Infinity;
@@ -49,6 +56,8 @@ function shift(items, dx, dy) {
 
 export function createFormulaFont(measure) {
   // measure(text, sizeCm, bold) -> width cm
+  // chemUpright: \ce{} 由来の数式は元素記号などを立体(非斜体)で描く
+  let chemUpright = false;
   function mkText(text, x, yBaseline, size, bold, color, italic) {
     const w = measure(text, size, bold);
     return { t: "text", x, y: yBaseline, size, text, bold: !!bold, color: color || null, italic: !!italic, _w: w };
@@ -164,26 +173,32 @@ export function createFormulaFont(measure) {
       return { items, width: Math.max(radRight, ss.right) - x + size * 0.04 };
     }
 
-    // 大型演算子 (∫∑∏): 大きめ＋上下/側方に極限
+    // 大型演算子 (∫∑∏): 大きめ＋上下/側方に極限。重心は行の中央に置く。
     if (BIG_OPS.has(e.base)) {
-      const opSize = size * (e.base === "∫" || e.base === "∮" ? 1.7 : 1.45);
-      const opTop = yTop + size * AXIS - opSize * 0.5; // 軸に中心
+      const integral = (e.base === "∫" || e.base === "∮");
+      const opSize = size * (integral ? 1.55 : 1.4);
+      const opTop = yTop + size * 0.5 - opSize * 0.5; // 行の中央に重心
       const t = mkText(e.base, x, opTop + opSize * ASCENT, opSize, bold, color, false);
       items.push(t);
       const opRight = x + t._w;
       if (UNDEROVER.has(e.base)) {
+        // ∑∏: 上下に極限を中央寄せで積む
         const cx = x + t._w / 2;
-        if (e.sup) { const up = placeCenteredAt(e.sup, cx, 0, size * SUB_SCALE, bold, color); shift(up.items, 0, (opTop) - up.bbox[3]); items.push(...up.items); }
-        if (e.sub) { const dn = placeCenteredAt(e.sub, cx, 0, size * SUB_SCALE, bold, color); shift(dn.items, 0, (opTop + opSize) - dn.bbox[1]); items.push(...dn.items); }
-        return { items, width: opRight - x + size * 0.08 };
+        let right = opRight;
+        if (e.sup) { const up = placeCenteredAt(e.sup, cx, 0, size * SUB_SCALE, bold, color); shift(up.items, 0, opTop - up.bbox[3] - size * 0.02); items.push(...up.items); right = Math.max(right, up.bbox[2]); }
+        if (e.sub) { const dn = placeCenteredAt(e.sub, cx, 0, size * SUB_SCALE, bold, color); shift(dn.items, 0, (opTop + opSize) - dn.bbox[1] + size * 0.02); items.push(...dn.items); right = Math.max(right, dn.bbox[2]); }
+        return { items, width: right - x + size * 0.08 };
       }
-      const ss = placeScripts(e, opRight + size * 0.02, yTop, size, bold, color);
-      items.push(...ss.items);
-      return { items, width: Math.max(opRight, ss.right) - x + size * 0.08 };
+      // ∫: 上限=記号の右上, 下限=記号の右下
+      const lx = opRight + size * 0.02, ssz = size * SUB_SCALE;
+      let right = lx;
+      if (e.sup) { const up = placeSeq(e.sup, lx, 0, ssz, bold, color); shift(up.items, 0, (opTop + opSize * 0.30) - ssz * ASCENT); items.push(...up.items); right = Math.max(right, lx + up.width); }
+      if (e.sub) { const dn = placeSeq(e.sub, lx, 0, ssz, bold, color); shift(dn.items, 0, (opTop + opSize * 0.88) - ssz * ASCENT); items.push(...dn.items); right = Math.max(right, lx + dn.width); }
+      return { items, width: right - x + size * 0.10 };
     }
 
-    // 通常文字
-    const t = mkText(e.base, x, baseline, size, bold, color, isVar(e.base));
+    // 通常文字 (化学は元素記号など立体)
+    const t = mkText(e.base, x, baseline, size, bold, color, isVar(e.base) && !chemUpright);
     items.push(t);
     const ss = placeScripts(e, x + t._w + size * SUBSUP_GAP, yTop, size, bold, color);
     items.push(...ss.items);
@@ -195,7 +210,12 @@ export function createFormulaFont(measure) {
     const items = [];
     let right = scriptX;
     const baseline = yTop + size * ASCENT;
-    if (e.sup) {
+    if (e.sup && isPrimeOnly(e.sup)) {
+      // プライム f′ は ′(U+2032) を本体サイズ・本体ベースラインで描く
+      // (′ グリフ自体が右上に位置するため、小さく持ち上げると浮きすぎる)。
+      const t = mkText(primeStr(e.sup), scriptX, baseline, size * 0.92, bold, color, false);
+      items.push(t); right = Math.max(right, scriptX + t._w);
+    } else if (e.sup) {
       // placeSeq は yTop=0 で置くので現ベースライン = supSize*ASCENT。
       // 目標ベースライン = base baseline - size*SUP_SHIFT へ平行移動。
       const r = placeSeq(e.sup, scriptX, 0, size * SUP_SCALE, bold, color);
@@ -235,6 +255,7 @@ export function createFormulaFont(measure) {
   }
 
   function placeFormula(src, xCm, yTopCm, sizeCm, bold, color) {
+    chemUpright = /\\ce\{/.test(src); // 化学式は立体で描く
     const exprs = parseFormula(src);
     const r = placeSeq(exprs, xCm, yTopCm, sizeCm, bold, color || null);
     return { items: r.items, width: r.width };

@@ -101,13 +101,6 @@
       <a href="/preview" class="active">作成</a>
     </nav>
     <span class="sp"></span>
-    <label style="font-size:0.82rem;color:#555">フォント
-      <select id="fontSel" class="tbtn" style="cursor:pointer">
-        <option value="Noto Sans JP">ゴシック (Noto Sans JP)</option>
-        <option value="Noto Serif JP">明朝 (Noto Serif JP)</option>
-        <option value="M PLUS Rounded 1c">丸ゴシック (M PLUS Rounded 1c)</option>
-      </select>
-    </label>
     <button id="resetSel" class="tbtn">選択リセット</button>
     <button id="resetAll" class="tbtn">全リセット</button>
     <button id="save" class="tbtn">位置を保存</button>
@@ -140,6 +133,13 @@
         <span class="fmt-sep"></span>
         <span class="fmt-label">サイズ</span><span id="fmtRole" class="fmt-role">本文</span>
         <button id="fmtSizeDown" class="fbtn">−</button><span id="fmtSizeVal">–</span><button id="fmtSizeUp" class="fbtn">＋</button>
+        <span class="fmt-sep"></span>
+        <span class="fmt-label">フォント</span>
+        <select id="fontSel" class="fbtn" style="cursor:pointer">
+          <option value="Noto Sans JP">ゴシック (Noto Sans JP)</option>
+          <option value="Noto Serif JP">明朝 (Noto Serif JP)</option>
+          <option value="M PLUS Rounded 1c">丸ゴシック (M PLUS Rounded 1c)</option>
+        </select>
       </div>
       <div id="missingBar" class="missing-bar" style="display:none"></div>
       <div id="status"></div>
