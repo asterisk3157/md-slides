@@ -1,0 +1,7 @@
+name = "md-slides"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "public"
+
+# テキスト専用 md→slide。辞書・D1・サーバ生成なし＝原則 静的配信。
+# 認証も不要（公開可）。`functions/api/{export,theme}.ts` は手書き版から温存した
+# 書き換え対象（インク→テキスト化の作業で整理する）。

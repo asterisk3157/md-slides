@@ -1,0 +1,13 @@
+{
+  "name": "md-slides",
+  "version": "0.1.0",
+  "private": true,
+  "description": "テキスト専用 md→slide アプリ（ブラウザ完結・辞書なし・編集可能 pptx 出力）",
+  "scripts": {
+    "dev": "wrangler pages dev public --port 8788 --ip 0.0.0.0",
+    "deploy": "wrangler pages deploy public --project-name md-slides"
+  },
+  "devDependencies": {
+    "wrangler": "^4.93.0"
+  }
+}
