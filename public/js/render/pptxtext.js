@@ -96,6 +96,20 @@ function polySp(it, id) {
   ].join("");
 }
 
+function itemsBbox(items) {
+  let xn = Infinity, yn = Infinity, xx = -Infinity, yx = -Infinity;
+  for (const it of items) {
+    if (it.t === "text") { const w = it._w != null ? it._w : 0; xn = Math.min(xn, it.x); xx = Math.max(xx, it.x + w); yn = Math.min(yn, it.y - it.size * TOP_RATIO); yx = Math.max(yx, it.y + it.size * 0.3); }
+    else if (it.t === "line") { xn = Math.min(xn, it.x1, it.x2); xx = Math.max(xx, it.x1, it.x2); yn = Math.min(yn, it.y1, it.y2); yx = Math.max(yx, it.y1, it.y2); }
+    else if (it.t === "poly") { for (const [x, y] of it.pts) { xn = Math.min(xn, x); xx = Math.max(xx, x); yn = Math.min(yn, y); yx = Math.max(yx, y); } }
+    else if (it.t === "disc") { xn = Math.min(xn, it.cx - it.r); xx = Math.max(xx, it.cx + it.r); yn = Math.min(yn, it.cy - it.r); yx = Math.max(yx, it.cy + it.r); }
+  }
+  if (!isFinite(xn)) return null;
+  return [xn, yn, xx, yx];
+}
+
+// 各ブロックを <p:grpSp> でまとめ、ブロック単位でアニメ対象にできるようにする。
+// 返り値: { xml, spids } (spids = 各グループの shape id, アニメ順)
 function buildSlideXml(blocks, defaultColor, fontName) {
   const p = [];
   p.push(DECL);
@@ -103,17 +117,59 @@ function buildSlideXml(blocks, defaultColor, fontName) {
   p.push("<p:cSld><p:spTree>");
   p.push('<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>');
   p.push('<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>');
-  let id = 100;
+  let id = 1;
+  const spids = [];
   for (const blk of blocks) {
-    for (const it of (blk.items || [])) {
-      id += 1;
-      if (it.t === "text") { if (it.text) p.push(textSp({ ...it, color: it.color || defaultColor }, id, fontName)); }
-      else if (it.t === "line") p.push(lineSp({ ...it, color: it.color || defaultColor }, id));
-      else if (it.t === "poly") p.push(polySp({ ...it, color: it.color || defaultColor }, id));
-      else if (it.t === "disc") p.push(discSp({ ...it, color: it.color || defaultColor }, id));
+    const items = (blk.items || []).filter((it) => it.t !== "text" || it.text);
+    if (!items.length) continue;
+    const bb = itemsBbox(items);
+    const gid = ++id;
+    spids.push(gid);
+    const ox = emu(bb[0]), oy = emu(bb[1]), cx = Math.max(emu(bb[2] - bb[0]), 1), cy = Math.max(emu(bb[3] - bb[1]), 1);
+    p.push("<p:grpSp>");
+    p.push(`<p:nvGrpSpPr><p:cNvPr id="${gid}" name="ブロック ${gid}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>`);
+    p.push(`<p:grpSpPr><a:xfrm><a:off x="${ox}" y="${oy}"/><a:ext cx="${cx}" cy="${cy}"/><a:chOff x="${ox}" y="${oy}"/><a:chExt cx="${cx}" cy="${cy}"/></a:xfrm></p:grpSpPr>`);
+    for (const it of items) {
+      const c = { ...it, color: it.color || defaultColor };
+      if (it.t === "text") p.push(textSp(c, ++id, fontName));
+      else if (it.t === "line") p.push(lineSp(c, ++id));
+      else if (it.t === "poly") p.push(polySp(c, ++id));
+      else if (it.t === "disc") p.push(discSp(c, ++id));
     }
+    p.push("</p:grpSp>");
   }
-  p.push("</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>");
+  p.push("</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>");
+  return { xml: p.join(""), spids };
+}
+
+// 左→右ワイプ (entr)。手書き版 timing.py で実機検証済みの seq/mainSeq/clickEffect 構造を
+// 流用し、葉を drawProgress→animEffect(filter="wipe(left)") に差し替え。ブロック=1クリック。
+function buildTimingWipe(spids, durMs) {
+  durMs = durMs || 500;
+  const p = [];
+  p.push("<p:timing><p:tnLst><p:par>");
+  p.push('<p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>');
+  p.push('<p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>');
+  let nid = 3;
+  for (const sp of spids) {
+    const outer = nid, mid = nid + 1, click = nid + 2; nid += 3;
+    p.push("<p:par>");
+    p.push(`<p:cTn id="${outer}" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst>`);
+    p.push("<p:par>");
+    p.push(`<p:cTn id="${mid}" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>`);
+    p.push("<p:par>");
+    p.push(`<p:cTn id="${click}" presetID="22" presetClass="entr" presetSubtype="8" fill="hold" grpId="0" nodeType="clickEffect"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>`);
+    const setId = nid, effId = nid + 1; nid += 2;
+    p.push(`<p:set><p:cBhvr><p:cTn id="${setId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid="${sp}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set>`);
+    p.push(`<p:animEffect transition="in" filter="wipe(left)"><p:cBhvr><p:cTn id="${effId}" dur="${durMs}"/><p:tgtEl><p:spTgt spid="${sp}"/></p:tgtEl></p:cBhvr></p:animEffect>`);
+    p.push("</p:childTnLst></p:cTn></p:par>");
+    p.push("</p:childTnLst></p:cTn></p:par>");
+    p.push("</p:childTnLst></p:cTn></p:par>");
+  }
+  p.push("</p:childTnLst></p:cTn>");
+  p.push('<p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>');
+  p.push('<p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst>');
+  p.push("</p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
   return p.join("");
 }
 
@@ -168,6 +224,7 @@ export function buildPptxText(slidesBlocks, opts, skeletonParts) {
   const wCm = (opts && opts.slideWCm) || 33.867;
   const hCm = (opts && opts.slideHCm) || 19.05;
   const fontName = (opts && opts.fontName) || "Noto Sans JP";
+  const anim = !(opts && opts.anim === false);
   const nSlides = slidesBlocks.length;
   const files = [];
   for (const [path, part] of Object.entries(skeletonParts)) {
@@ -175,7 +232,11 @@ export function buildPptxText(slidesBlocks, opts, skeletonParts) {
     else files.push({ name: path, data: b64ToBytes(part.b) });
   }
   for (let s = 0; s < nSlides; s++) {
-    files.push({ name: `ppt/slides/slide${s + 1}.xml`, data: buildSlideXml(slidesBlocks[s], color, fontName) });
+    const { xml, spids } = buildSlideXml(slidesBlocks[s], color, fontName);
+    let slideXml = xml;
+    if (anim && spids.length) slideXml += buildTimingWipe(spids);
+    slideXml += "</p:sld>";
+    files.push({ name: `ppt/slides/slide${s + 1}.xml`, data: slideXml });
     const rel = ['<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
       `<Relationship Id="rId1" Type="${R}/slideLayout" Target="../slideLayouts/slideLayout7.xml"/>`,
       "</Relationships>"];

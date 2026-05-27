@@ -133,7 +133,7 @@ function update(opts) {
   updateMissingUI(opts.autoOpen);
   // overrides の真実は MD frontmatter。毎回そこから同期する。
   overrides = result.doc.meta.overrides || {};
-  const { doc, slides, color, brushWidthCm, slideWCm, slideHCm, mode, fontFamily } = result;
+  const { doc, slides, color, brushWidthCm, slideWCm, slideHCm, mode, fontFamily, anim } = result;
   if (doc.errors.length) setStatus("err", "ERROR:\n" + doc.errors.join("\n"));
   else if (!slides.length) setStatus("warn", "スライドがありません (# 見出しが必要)");
   else setStatus("ok", `${slides.length} スライド  (ブロックをクリックで選択→ドラッグ移動 / 角ハンドルでリサイズ / Shift 押しながらでグリッド吸着)`);
@@ -141,7 +141,7 @@ function update(opts) {
   slidesEl.innerHTML = slides.map((s, i) =>
     `<div class="slide${s.overflow ? " overflow" : ""}"><div class="num">スライド ${i + 1}` +
     (s.overflow ? `<span class="ovwarn">はみ出し（固定サイズのため自動縮小しません）</span>` : "") +
-    (mode === "text" ? `<span class="ovwarn" style="color:#2563eb">テキストモード（フォント）</span>` : "") +
+    (mode === "text" ? `<span class="ovwarn" style="color:#2563eb">テキストモード（フォント）</span><span class="ovwarn" style="color:#0a7a3a">アニメ: ${anim ? "左→右ワイプ" : "なし"}</span>` : "") +
     `</div>` +
     (mode === "text"
       ? slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack })
@@ -568,13 +568,13 @@ mdEl.addEventListener("drop", (e) => {
 // ---- ツールバー ----
 document.getElementById("dl").addEventListener("click", () => {
   if (!lastResult || !skeleton) { setStatus("warn", "まだ準備中です"); return; }
-  const { doc, slides, color, brushWidthCm, mode, fontFamily, slideWCm, slideHCm } = lastResult;
+  const { doc, slides, color, brushWidthCm, mode, fontFamily, slideWCm, slideHCm, anim } = lastResult;
   if (!slides.length) { setStatus("err", "スライドがありません"); return; }
   try {
     let bytes;
     if (mode === "text") {
       // ネイティブテキスト出力 (辞書不要・編集可能)
-      bytes = buildPptxText(slides.map((s) => s.blocks), { color: doc.meta.color || "#000000", slideWCm, slideHCm, fontName: fontFamily || "Noto Sans JP" }, skeleton);
+      bytes = buildPptxText(slides.map((s) => s.blocks), { color: doc.meta.color || "#000000", slideWCm, slideHCm, fontName: fontFamily || "Noto Sans JP", anim }, skeleton);
     } else {
       const sb = slides.map((s, i) => applySlideOverrides(s.blocks, overrides[i]));
       bytes = buildPptx(sb, { color: doc.meta.color || "#000000", brushWidthCm: doc.meta.brush_width_cm || 0.06 }, skeleton);
