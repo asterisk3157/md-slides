@@ -169,8 +169,56 @@ function mergePrimesIntoSup(exprs) {
   return out;
 }
 
+// ---------- 化学記法 \ce{...} (mhchem 風 L1+L2) → LaTeX 風へ展開 ----------
+// L1: 分子式・イオン式 (H2SO4→H_{2}SO_{4}, SO4^2-→SO_{4}^{2-}, Ca^2+)
+// L2: 反応式 (係数, + , 矢印 -> <=> <- <->, 矢印上下の条件 ->[Δ][触媒], 状態 (s)(l)(g)(aq))
+const CE_ARROWS = { "->": "→", "<=>": "⇌", "<->": "↔", "<-": "←", "<<-": "←", "=": "=" };
+function ceArrow(tok) {
+  if (tok === "→" || tok === "⇌" || tok === "↔" || tok === "←") return tok;
+  const m = /^(<=>|<->|<<-|<-|->|=)(\[[^\]]*\])?(\[[^\]]*\])?$/.exec(tok);
+  if (!m) return null;
+  let s = CE_ARROWS[m[1]];
+  if (m[2]) s += `^{${m[2].slice(1, -1)}}`; // 矢印上の条件
+  if (m[3]) s += `_{${m[3].slice(1, -1)}}`; // 矢印下の条件
+  return s;
+}
+function ceSpecies(tok) {
+  // 先頭の数字 = 係数 (通常サイズ)
+  let i = 0; while (i < tok.length && /\d/.test(tok[i])) i++;
+  const coef = tok.slice(0, i);
+  let rest = tok.slice(i);
+  // 電荷: 明示 ^... → ^{...}
+  rest = rest.replace(/\^(\{[^}]*\}|\d*[+\-])/g, (m, g) => `^{${g.replace(/[{}]/g, "")}}`);
+  // 末尾の素の +/- (電荷) → ^{+}/^{-}
+  rest = rest.replace(/([+\-])$/, (m, s) => `^{${s}}`);
+  // 添字: 文字/閉じ括弧の直後の数字 → _{n}
+  rest = rest.replace(/(?<=[A-Za-z\)\]])(\d+)/g, (m, d) => `_{${d}}`);
+  return coef + rest;
+}
+function ceToLatex(body) {
+  return body.trim().split(/\s+/).filter(Boolean).map((tok) => {
+    if (tok === "+") return "+";
+    const a = ceArrow(tok); if (a !== null) return a;
+    if (/^\d+$/.test(tok)) return tok; // 単独係数
+    return ceSpecies(tok);
+  }).join(" ");
+}
+export function expandCe(src) {
+  let out = "", i = 0;
+  while (i < src.length) {
+    const idx = src.indexOf("\\ce{", i);
+    if (idx < 0) { out += src.slice(i); break; }
+    out += src.slice(i, idx);
+    let j = idx + 4, depth = 1;
+    while (j < src.length) { const c = src[j]; if (c === "{") depth++; else if (c === "}") { depth--; if (depth === 0) break; } j++; }
+    out += ceToLatex(src.slice(idx + 4, j));
+    i = j + 1;
+  }
+  return out;
+}
+
 export function parseFormula(src) {
-  return mergePrimesIntoSup(new Parser(src).parseSequence());
+  return mergePrimesIntoSup(new Parser(expandCe(src)).parseSequence());
 }
 
 // placed stroke を絶対座標から直接作る

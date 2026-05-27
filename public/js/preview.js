@@ -699,6 +699,13 @@ styles:
 - ギリシャ: $\pi$, $\theta$, $\alpha$, $\beta$, $\lambda$, $\sigma$, $\omega$
 - 演算子: $\pm$, $\times$, $\div$, $\leq$, $\geq$, $\neq$, $\approx$, $\to$, $\Rightarrow$, $\infty$
 
+# 化学記法 \ce{}
+
+- 分子式: $\ce{H2SO4}$, $\ce{CaCO3}$, $\ce{Ca(OH)2}$
+- イオン式: $\ce{SO4^2-}$, $\ce{Ca^2+}$, $\ce{Na+}$, $\ce{Cl-}$
+- 反応式: $\ce{2H2 + O2 -> 2H2O}$
+- 平衡・条件付き: $\ce{N2 + 3H2 <=> 2NH3}$, $\ce{CaCO3 ->[\Delta] CaO + CO2}$
+
 # ブロック数式
 
 - 独立行の数式は $$ で囲む
@@ -771,6 +778,13 @@ const LLM_SPEC = String.raw`あなたはmd→slide 用の Markdown を作るア�
 ・極限/関数 \lim_{x \to 0} / \sin x \cos \tan \log \ln
 ・ベクトル \vec{a}
 ・記号 \pi \theta \alpha \beta \lambda \mu \sigma \infty \pm \times \div \leq \geq \neq \approx \to \Rightarrow \cdots
+
+【化学 \ce{}】数式の中で \ce{...} と書く (mhchem 風)
+・分子式: \ce{H2SO4} (数字は自動で下付き), \ce{Ca(OH)2}
+・イオン式: \ce{SO4^2-} \ce{Ca^2+} \ce{Na+} (^電荷 は上付き)
+・反応式: \ce{2H2 + O2 -> 2H2O} (係数・+ ・矢印 -> )
+・平衡 <=> 、条件付き矢印 \ce{CaCO3 ->[\Delta] CaO + CO2} ( ->[上][下] )
+・状態は (s)(l)(g)(aq) をそのまま書く
 
 【表・増減表】
 ・通常の Markdown 表(| 区切り、2行目は ---)。セル内に数式も可。
