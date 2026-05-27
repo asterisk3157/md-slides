@@ -141,8 +141,11 @@ select,input,textarea{ font: inherit; color: inherit; }
 .pane-head svg{ width:16px; height:16px; }
 .pane-head .spacer{ flex:1; }
 .pane-head .lines{ font-variant-numeric: tabular-nums; color: var(--n-50); font-weight: 400; text-transform: none; letter-spacing: 0; }
-#md{ flex: 1; min-height: 0; width: 100%; border: 0; outline: none; resize: none; padding: 18px 18px 24px; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; color: var(--n-10); background: var(--surface-container-lowest); tab-size: 2; }
-#md:focus{ background: var(--n-100); }
+.editor-wrap{ position: relative; flex: 1; min-height: 0; background: var(--n-100); }
+.md-highlight, #md{ position:absolute; inset:0; margin:0; width:100%; height:100%; box-sizing:border-box; padding: 18px 18px 24px; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; tab-size: 2; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; scrollbar-gutter: stable; }
+.md-highlight{ color: transparent; overflow: hidden; pointer-events: none; }
+.md-highlight mark{ background: #d6e2ff; color: transparent; border-radius: 2px; }
+#md{ border: 0; outline: none; resize: none; color: var(--n-10); background: transparent; overflow-y: auto; }
 
 .pane-prev{ display:grid; grid-template-rows: 1fr 168px; grid-template-columns: minmax(0, 1fr); min-height: 0; min-width: 0; background: var(--surface); }
 .stage{ position: relative; display:flex; align-items:center; justify-content:center; padding: 28px 40px 20px; min-height: 0; min-width: 0; background: var(--surface); }
@@ -163,12 +166,14 @@ select,input,textarea{ font: inherit; color: inherit; }
 .filmstrip .nav{ width: 36px; height: 36px; border-radius:50%; display:grid; place-items:center; background: var(--surface-container-highest); color: var(--on-surface-variant); box-shadow: var(--elev-1); flex-shrink:0; }
 .filmstrip .nav:hover{ background: var(--p-90); color: var(--p-10); }
 .filmstrip .nav svg{ width:18px; height:18px; }
-.thumbs{ flex: 1; min-width: 0; display:flex; align-items:center; gap: 10px; overflow-x: auto; scroll-behavior: smooth; padding: 4px 8px; }
-.thumbs::-webkit-scrollbar{ height: 6px; }
-.thumbs::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 3px; }
-.thumb{ flex: 0 0 auto; width: 196px; aspect-ratio: 16/9; background: #fff; border-radius: var(--r-md); box-shadow: var(--elev-1); cursor: pointer; position: relative; overflow: hidden; transition: box-shadow .15s, transform .15s; }
-.thumb:hover{ box-shadow: var(--elev-2); transform: translateY(-2px); }
-.thumb.is-active{ outline: 2px solid var(--p-40); outline-offset: 2px; }
+.thumbs{ flex: 1; min-width: 0; display:flex; align-items:center; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; padding: 6px 6px 10px; }
+.thumbs::-webkit-scrollbar{ height: 10px; }
+.thumbs::-webkit-scrollbar-track{ background: transparent; }
+.thumbs::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 999px; border: 3px solid var(--surface-container-low); }
+.thumbs::-webkit-scrollbar-thumb:hover{ background: var(--n-70); }
+.thumb{ flex: 0 0 auto; width: 176px; aspect-ratio: 16/9; background: #fff; border: 1px solid var(--outline-variant); border-radius: var(--r-sm); box-shadow: var(--elev-1); cursor: pointer; position: relative; overflow: hidden; transition: box-shadow .15s, border-color .15s; }
+.thumb:hover{ box-shadow: var(--elev-2); border-color: var(--outline); }
+.thumb.is-active{ border-color: var(--p-40); box-shadow: inset 0 0 0 2px var(--p-40), var(--elev-1); }
 .thumb-num{ position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; display:grid; place-items:center; font-size: 11px; font-weight: 500; z-index:1; }
 .thumb.is-active .thumb-num{ background: var(--p-40); }
 .thumb svg{ width:100%; height:100%; display:block; }
@@ -222,7 +227,7 @@ select,input,textarea{ font: inherit; color: inherit; }
     <symbol id="i-settings" viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.66 8.48a.5.5 0 0 0 .12.64L4.81 10.7c-.04.31-.06.62-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.41.32.61.22l2.39-.96c.49.39 1.03.7 1.62.94l.36 2.54c.05.24.25.42.49.42h3.84c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.62-.94l2.39.96c.2.1.48.01.61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="m19 6.41-1.41-1.42L12 10.59 6.41 4.99 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
     <symbol id="i-text-color" viewBox="0 0 24 24"><path fill="currentColor" d="M2 20h20v3H2zM5.5 17h2.4l1.1-2.8h5l1.1 2.8h2.4l-5-13h-2zm4.2-4.7L11.5 7l1.8 5.3z"/></symbol>
-    <symbol id="i-style" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3 4 7v6c0 4.55 3.05 8.78 8 10 4.95-1.22 8-5.45 8-10V7zm0 8v8.93C8.45 19.04 6 15.66 6 13V8.3l6-2.7v5.4z"/></symbol>
+    <symbol id="i-style" viewBox="0 0 24 24"><path fill="currentColor" d="M5 4v3h5.5v12h3V7H19V4z"/></symbol>
     <symbol id="i-edit-doc" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM6 20V4h7v5h5v11z"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path fill="currentColor" d="M8.6 16.6 13.2 12 8.6 7.4 10 6l6 6-6 6z"/></symbol>
@@ -232,7 +237,7 @@ select,input,textarea{ font: inherit; color: inherit; }
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path fill="currentColor" d="m12 4-1.4 1.4 5.6 5.6H4v2h12.2L10.6 18.6 12 20l8-8z"/></symbol>
     <symbol id="i-arrow-up" viewBox="0 0 24 24"><path fill="currentColor" d="m4 12 1.4 1.4 5.6-5.6V20h2V7.8l5.6 5.6L20 12l-8-8z"/></symbol>
     <symbol id="i-arrow-down" viewBox="0 0 24 24"><path fill="currentColor" d="m4 12 1.4-1.4 5.6 5.6V4h2v12.2l5.6-5.6L20 12l-8 8z"/></symbol>
-    <symbol id="i-none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 0 1-6.32-12.9L17.9 18.32A7.95 7.95 0 0 1 12 20m6.32-3.1L6.1 4.68A8 8 0 0 1 18.32 16.9"/></symbol>
+    <symbol id="i-none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8M7 11h10v2H7z"/></symbol>
     <symbol id="i-clear" viewBox="0 0 24 24"><path fill="currentColor" d="M3.27 5 2 6.27l6.97 6.97L6.5 18h3l1.57-3.66L16.73 20 18 18.73zM6 5l2 2h.5l-.6 1.4 1.55 1.55L11 6h3v3.5l1.36 1.36L15.5 5z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H8V7h11z"/></symbol>
     <symbol id="i-reset" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5V2L7 7l5 5V8a6 6 0 1 1-5.9 7H4.07A8 8 0 1 0 12 5"/></symbol>
@@ -249,13 +254,11 @@ select,input,textarea{ font: inherit; color: inherit; }
       <div class="brand-wm"><em>md</em>-slides</div>
     </a>
     <div class="grow"></div>
-    <div id="status" class="status-pill" title="状態"><span class="dot"></span><span id="statusText">読み込み中…</span></div>
-    <div class="grow"></div>
-    <button id="save" class="icon-btn" title="位置を保存"><svg><use href="#i-save"/></svg></button>
-    <button id="resetSel" class="icon-btn" title="選択をリセット"><svg><use href="#i-reset"/></svg></button>
+    <button id="save" class="icon-btn" title="レイアウトを保存"><svg><use href="#i-save"/></svg></button>
+    <button id="resetSel" class="icon-btn" title="選択を初期化"><svg><use href="#i-reset"/></svg></button>
     <button id="openSettings" class="icon-btn" title="設定"><svg><use href="#i-settings"/></svg></button>
     <div class="divider-v"></div>
-    <button id="dl" class="btn-filled" title="編集可能な .pptx をダウンロード"><svg><use href="#i-download"/></svg>pptx ダウンロード</button>
+    <button id="dl" class="btn-filled" title="編集できる .pptx をダウンロード"><svg><use href="#i-download"/></svg>ダウンロード</button>
   </header>
 
   <!-- FORMAT BAR (contextual, floating) -->
@@ -315,21 +318,16 @@ select,input,textarea{ font: inherit; color: inherit; }
   <main class="main">
     <section class="pane-edit" aria-label="Markdown エディタ">
       <div class="pane-head"><svg><use href="#i-edit-doc"/></svg>Markdown<span class="spacer"></span><span class="lines" id="mdLines"></span></div>
-      <textarea id="md" spellcheck="false"></textarea>
+      <div class="editor-wrap">
+        <div id="mdHighlight" class="md-highlight" aria-hidden="true"></div>
+        <textarea id="md" spellcheck="false"></textarea>
+      </div>
     </section>
 
     <section class="pane-prev">
       <div class="stage" id="stage">
         <div class="badge"><span class="num-pill" id="badgeNum">–</span> / <span id="badgeTotal">–</span></div>
-        <div class="stage-tools">
-          <button class="icon-btn" id="prevSlide" title="前のスライド"><svg><use href="#i-chevron-left"/></svg></button>
-          <button class="icon-btn" id="nextSlide" title="次のスライド"><svg><use href="#i-chevron-right"/></svg></button>
-        </div>
         <div id="slides"></div>
-        <div class="select-hint" id="selectHint">
-          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M13.64 21.97c-.16 0-.32-.04-.47-.11l-3.18-1.57-3.91 3.71v-13l13 9.62-4.5.71 2.36 4.79c.17.35.02.78-.34.96-.1.05-.21.07-.32.07z"/></svg>
-          スライドの要素をクリックして編集
-        </div>
         <div class="hint" id="editHint"></div>
       </div>
       <div class="filmstrip">
@@ -342,10 +340,10 @@ select,input,textarea{ font: inherit; color: inherit; }
 
   <!-- STATUS BAR -->
   <footer class="statusbar">
+    <span class="status-pill" id="status"><span class="dot"></span><span id="statusText">読み込み中…</span></span>
+    <span class="grow"></span>
     <span class="sb-item" id="sbSlides">–</span>
     <span class="sb-item" id="sbLines">–</span>
-    <span class="grow"></span>
-    <span class="sb-item">md-slides</span>
   </footer>
 </div>
 
@@ -358,9 +356,9 @@ select,input,textarea{ font: inherit; color: inherit; }
   </div>
   <div class="sheet-body">
     <div class="sect">
-      <h3>外観 / フォント</h3>
+      <h3>フォント</h3>
       <div class="row">
-        <div><div class="label">既定フォント</div><div class="desc">文書全体の本文フォント (frontmatter font:)</div></div>
+        <div><div class="label">既定のフォント</div><div class="desc">すべてのスライドの本文に使う書体</div></div>
         <div class="field" style="height:38px">
           <select id="setDefaultFont">
             <option value="">ゴシック (Noto Sans JP)</option>
@@ -374,23 +372,23 @@ select,input,textarea{ font: inherit; color: inherit; }
     <div class="sect">
       <h3>アニメーション</h3>
       <div class="row">
-        <div><div class="label">登場アニメ ON</div><div class="desc">既定で左→右ワイプ。OFFでも個別指定は可能</div></div>
+        <div><div class="label">登場アニメ</div><div class="desc">オンにすると要素が左から順に表示されます。向きはツールバーで個別に変更できます。</div></div>
         <div class="switch is-on" id="setAnim" role="switch" aria-checked="true"></div>
       </div>
     </div>
     <div class="sect">
-      <h3>AI 記法</h3>
-      <p style="margin:0 0 10px;font-size:12px;color:var(--on-surface-variant);line-height:1.5">LLM(ChatGPT/Claude等)に貼ると md-slides 用の Markdown を作れます。</p>
+      <h3>下書きを生成</h3>
+      <p style="margin:0 0 10px;font-size:12px;color:var(--on-surface-variant);line-height:1.6">この記法をコピーして ChatGPT や Claude に貼ると、md-slides 用の下書き（Markdown）を作れます。</p>
       <div class="txt-field"><textarea id="llmSpec" spellcheck="false"></textarea></div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button id="copyLlm" class="btn-tonal"><svg><use href="#i-copy"/></svg>記法をコピー</button>
       </div>
     </div>
     <div class="sect">
-      <h3>危険な操作</h3>
+      <h3>リセット</h3>
       <div class="row" style="padding-top:0">
-        <div><div class="label">全リセット</div><div class="desc">全スライドの位置・色・サイズ・登場を初期化</div></div>
-        <button id="resetAll" class="btn-danger"><svg><use href="#i-reset"/></svg>全リセット</button>
+        <div><div class="label">すべて初期化</div><div class="desc">全スライドの位置・色・サイズ・登場アニメを元に戻します</div></div>
+        <button id="resetAll" class="btn-danger"><svg><use href="#i-reset"/></svg>初期化</button>
       </div>
     </div>
   </div>

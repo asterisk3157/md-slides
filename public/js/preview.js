@@ -181,6 +181,7 @@ function update(opts) {
   }
   if (selected && selected.slide === currentSlide) drawSelection(); else hideFmtbar();
   updateFmtbar();
+  renderMdHighlight();
 }
 
 // フィルムストリップ/ナビからスライド切替。選択は解除。
@@ -192,6 +193,8 @@ function setCurrentSlide(i) {
   selected = null; charMode = null;
   update();
   syncMdToSlide(i);
+  const at = $("thumbs") && $("thumbs").querySelector(".thumb.is-active");
+  if (at) at.scrollIntoView({ inline: "nearest", block: "nearest" });
 }
 function syncMdToSlide(i) {
   if (document.activeElement === mdEl) return;
@@ -199,6 +202,27 @@ function syncMdToSlide(i) {
   const line = (sl && sl.headingSrc && sl.headingSrc[0]) || 0;
   const total = (mdEl.value.match(/\n/g) || []).length + 1;
   mdEl.scrollTop = Math.max(0, (total > 1 ? line / total : 0) * (mdEl.scrollHeight - mdEl.clientHeight));
+  const hl = $("mdHighlight"); if (hl) hl.scrollTop = mdEl.scrollTop;
+}
+// MD エディタ背面に、表示中スライドの該当行を薄い青でハイライト (textarea のミラー)。
+function renderMdHighlight() {
+  const hl = $("mdHighlight"); if (!hl) return;
+  const lines = mdEl.value.split("\n");
+  let start = -1, end = -1;
+  if (lastResult && lastResult.doc.slides.length) {
+    const sl = lastResult.doc.slides[currentSlide];
+    start = (sl && sl.headingSrc && sl.headingSrc[0] != null) ? sl.headingSrc[0] : -1;
+    const nx = lastResult.doc.slides[currentSlide + 1];
+    end = (nx && nx.headingSrc && nx.headingSrc[0] != null) ? nx.headingSrc[0] : lines.length;
+  }
+  let html = "";
+  for (let i = 0; i < lines.length; i++) {
+    const safe = escapeHtml(lines[i]);
+    html += (i >= start && i < end && safe) ? `<mark>${safe}</mark>` : safe;
+    if (i < lines.length - 1) html += "\n";
+  }
+  hl.innerHTML = html;
+  hl.scrollTop = mdEl.scrollTop;
 }
 
 // 登場アニメの向き (ブロック単位 override.anim)。同じ向きを再クリックで既定に戻す。
@@ -672,8 +696,9 @@ if (fontSelEl) fontSelEl.addEventListener("change", () => {
   }
 });
 
-// ---- ファイルドロップ ----
+// ---- ファイルドロップ / スクロール同期 ----
 mdEl.addEventListener("input", () => { clearTimeout(window._t); window._t = setTimeout(() => { update(); baselineHistory(); }, 150); });
+mdEl.addEventListener("scroll", () => { const hl = $("mdHighlight"); if (hl) hl.scrollTop = mdEl.scrollTop; });
 mdEl.addEventListener("dragover", (e) => e.preventDefault());
 mdEl.addEventListener("drop", (e) => {
   e.preventDefault();
@@ -741,9 +766,19 @@ $("setAnim") && $("setAnim").addEventListener("click", () => {
   update(); baselineHistory();
 });
 
-// ---- スライドナビ ----
-["prevSlide", "filmPrev"].forEach((id) => $(id) && $(id).addEventListener("click", () => setCurrentSlide(currentSlide - 1)));
-["nextSlide", "filmNext"].forEach((id) => $(id) && $(id).addEventListener("click", () => setCurrentSlide(currentSlide + 1)));
+// ---- フィルムストリップ: 矢印でストリップを横スクロール ----
+function scrollThumbs(dir) { const t = $("thumbs"); if (t) t.scrollBy({ left: dir * Math.max(200, t.clientWidth * 0.8), behavior: "smooth" }); }
+$("filmPrev") && $("filmPrev").addEventListener("click", () => scrollThumbs(-1));
+$("filmNext") && $("filmNext").addEventListener("click", () => scrollThumbs(1));
+// ステージ矢印が残っていればスライド送り (現状UIには無い)
+$("prevSlide") && $("prevSlide").addEventListener("click", () => setCurrentSlide(currentSlide - 1));
+$("nextSlide") && $("nextSlide").addEventListener("click", () => setCurrentSlide(currentSlide + 1));
+// 矢印キーでスライド送り (MD編集中・選択中は除く)
+document.addEventListener("keydown", (e) => {
+  if (document.activeElement === mdEl || selected) return;
+  if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); setCurrentSlide(currentSlide + 1); }
+  else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); setCurrentSlide(currentSlide - 1); }
+});
 window.addEventListener("resize", () => { if (selected) { const r = slidesEl.querySelector(".sel-rect"); if (r) positionFmtbar(r); } });
 
 // ---- QR オーバーレイのボタン ----
