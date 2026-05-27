@@ -136,17 +136,19 @@ function update(opts) {
   const { doc, slides, color, brushWidthCm, slideWCm, slideHCm, mode, fontFamily, anim } = result;
   if (doc.errors.length) setStatus("err", "ERROR:\n" + doc.errors.join("\n"));
   else if (!slides.length) setStatus("warn", "スライドがありません (# 見出しが必要)");
-  else setStatus("ok", `${slides.length} スライド  (ブロックをクリックで選択→ドラッグ移動 / 角ハンドルでリサイズ / Shift 押しながらでグリッド吸着)`);
+  else setStatus("ok", `${slides.length} スライド`);
 
-  slidesEl.innerHTML = slides.map((s, i) =>
-    `<div class="slide${s.overflow ? " overflow" : ""}"><div class="num">スライド ${i + 1}` +
+  slidesEl.innerHTML = slides.map((s, i) => {
+    const startLine = (doc.slides[i] && doc.slides[i].headingSrc && doc.slides[i].headingSrc[0]) || 0;
+    return `<div class="slide${s.overflow ? " overflow" : ""}" data-line="${startLine}"><div class="num">スライド ${i + 1}` +
     (s.overflow ? `<span class="ovwarn">はみ出し（固定サイズのため自動縮小しません）</span>` : "") +
-    (mode === "text" ? `<span class="ovwarn" style="color:#2563eb">テキストモード（フォント）</span><span class="ovwarn" style="color:#0a7a3a">アニメ: ${anim ? "左→右ワイプ" : "なし"}</span>` : "") +
     `</div>` +
     (mode === "text"
       ? slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack }, overrides[i])
       : slideToSvgEditable(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, brushWidthCm }, overrides[i])) +
-    `</div>`).join("");
+    `</div>`;
+  }).join("");
+  updateActiveSlide();
 
   // 各スライドSVGにハンドラ
   slidesEl.querySelectorAll(".slide").forEach((slideDiv, si) => {
@@ -171,7 +173,7 @@ function setAnimDir(dir) {
   persist(); update(); recordHistory();
 }
 function updateAnimBtns(enabled, curDir) {
-  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"]]) {
+  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"], ["none", "animNone"]]) {
     const b = document.getElementById(id);
     if (!b) continue;
     b.disabled = !enabled; b.style.opacity = enabled ? "1" : "0.4";
@@ -191,6 +193,32 @@ function syncFontSel() {
   }
   fontSel.value = fv;
 }
+
+// 表示中スライドを薄い青で強調し、左MDをそのスライドの先頭行へスクロール同期。
+let lastActiveSlide = -1;
+function updateActiveSlide() {
+  const slideEls = slidesEl.querySelectorAll(".slide");
+  if (!slideEls.length) return;
+  const refY = 150; // ヘッダー下の基準線
+  let active = 0;
+  for (let i = 0; i < slideEls.length; i++) {
+    if (slideEls[i].getBoundingClientRect().top <= refY) active = i; else break;
+  }
+  slideEls.forEach((el, i) => el.classList.toggle("active", i === active));
+  if (active !== lastActiveSlide) { lastActiveSlide = active; syncMdScrollToSlide(slideEls[active]); }
+}
+function syncMdScrollToSlide(slideEl) {
+  if (!slideEl || document.activeElement === mdEl) return; // 編集中はスクロールを奪わない
+  const line = parseInt(slideEl.dataset.line || "0", 10);
+  const total = (mdEl.value.match(/\n/g) || []).length + 1;
+  const frac = total > 1 ? line / total : 0;
+  mdEl.scrollTop = Math.max(0, frac * (mdEl.scrollHeight - mdEl.clientHeight));
+}
+let _activeRaf = 0;
+window.addEventListener("scroll", () => {
+  if (_activeRaf) return;
+  _activeRaf = requestAnimationFrame(() => { _activeRaf = 0; updateActiveSlide(); });
+}, { passive: true });
 
 function enterCharMode(slide, block, g) {
   slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
@@ -548,14 +576,19 @@ function updateFmtbar() {
   const szBtns = [document.getElementById("fmtSizeUp"), document.getElementById("fmtSizeDown")];
   const en = (b, on) => { if (b) { b.disabled = !on; b.style.opacity = on ? "1" : "0.4"; } };
 
+  const hintEl = document.getElementById("fmtHint");
   if (!meta) { // 選択なし → 全部グレーアウト
     en(boldBtn, false); en(colorBtnEl, false); szBtns.forEach((b) => en(b, false));
     updateAnimBtns(false);
     closeColorPop();
     document.getElementById("fmtRole").textContent = "—";
     document.getElementById("fmtSizeVal").textContent = "–";
+    if (hintEl) hintEl.textContent = "";
     return;
   }
+  if (hintEl) hintEl.textContent = (selected && selected.el != null)
+    ? "ドラッグで移動 / 別の場所クリックで解除"
+    : "ドラッグで移動 / 角でリサイズ / Shiftで吸着 / ダブルクリックで文字単位編集";
   // 登場アニメ方向 (ブロック単位)
   const bAnim = (overrides[selected.slide] && overrides[selected.slide][selected.block]) || {};
   updateAnimBtns(true, bAnim.anim);
@@ -595,7 +628,7 @@ if (fmtbar) {
   document.addEventListener("click", (e) => { if (colorPop && colorPop.style.display === "block" && !e.target.closest(".fmt-colorwrap")) closeColorPop(); });
   document.getElementById("fmtSizeUp").addEventListener("click", () => changeSize(2));
   document.getElementById("fmtSizeDown").addEventListener("click", () => changeSize(-2));
-  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"]]) {
+  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"], ["none", "animNone"]]) {
     const b = document.getElementById(id);
     if (b) b.addEventListener("click", () => setAnimDir(dir));
   }

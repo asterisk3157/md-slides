@@ -129,9 +129,16 @@ function mergeTextItems(items) {
   return out;
 }
 
+// ブロックの登場方向を解決: none→なし / 明示方向→それ / 未指定→グローバルON時のみ既定left。
+function resolveAnimDir(blkAnim, globalOn) {
+  if (blkAnim === "none") return null;
+  if (blkAnim) return blkAnim;
+  return globalOn ? "left" : null;
+}
+
 // 各ブロックを <p:grpSp> でまとめ、ブロック単位でアニメ対象にできるようにする。
-// 返り値: { xml, spids } (spids = [{gid, dir}], dir = 登場方向 or null)
-function buildSlideXml(blocks, defaultColor, fontName) {
+// 返り値: { xml, spids } (spids = [{gid, dir}], dir = 解決後の登場方向 or null=アニメなし)
+function buildSlideXml(blocks, defaultColor, fontName, globalAnim) {
   const p = [];
   p.push(DECL);
   p.push(`<p:sld xmlns:a="${A}" xmlns:r="${R}" xmlns:p="${P}">`);
@@ -145,7 +152,7 @@ function buildSlideXml(blocks, defaultColor, fontName) {
     if (!items.length) continue;
     const bb = itemsBbox(items);
     const gid = ++id;
-    spids.push({ gid, dir: blk.anim || null });
+    spids.push({ gid, dir: resolveAnimDir(blk.anim, globalAnim) });
     const ox = emu(bb[0]), oy = emu(bb[1]), cx = Math.max(emu(bb[2] - bb[0]), 1), cy = Math.max(emu(bb[3] - bb[1]), 1);
     p.push("<p:grpSp>");
     p.push(`<p:nvGrpSpPr><p:cNvPr id="${gid}" name="ブロック ${gid}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>`);
@@ -174,6 +181,7 @@ function buildTimingWipe(spids, durMs) {
   const WIPE = { left: "left", right: "right", up: "up", down: "down" };
   let nid = 3;
   for (const e of spids) {
+    if (!e.dir) continue; // アニメなしのブロックは登場演出を付けない (最初から表示)
     const sp = e.gid, dir = WIPE[e.dir] || "left";
     const outer = nid, mid = nid + 1, click = nid + 2; nid += 3;
     p.push("<p:par>");
@@ -255,9 +263,9 @@ export function buildPptxText(slidesBlocks, opts, skeletonParts) {
     else files.push({ name: path, data: b64ToBytes(part.b) });
   }
   for (let s = 0; s < nSlides; s++) {
-    const { xml, spids } = buildSlideXml(slidesBlocks[s], color, fontName);
+    const { xml, spids } = buildSlideXml(slidesBlocks[s], color, fontName, anim);
     let slideXml = xml;
-    if (anim && spids.length) slideXml += buildTimingWipe(spids);
+    if (spids.some((e) => e.dir)) slideXml += buildTimingWipe(spids); // 個別指定があれば global off でも付く
     slideXml += "</p:sld>";
     files.push({ name: `ppt/slides/slide${s + 1}.xml`, data: slideXml });
     const rel = ['<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
