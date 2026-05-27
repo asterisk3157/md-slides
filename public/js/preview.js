@@ -161,6 +161,9 @@ function update(opts) {
   }
   if (selected) drawSelection();
   updateFmtbar();
+  // フォント選択を frontmatter と同期
+  const fontSel = document.getElementById("fontSel");
+  if (fontSel) fontSel.value = (mode === "text" && doc.meta.font) ? doc.meta.font : "Noto Sans JP";
 }
 
 function enterCharMode(slide, block, g) {
@@ -554,6 +557,13 @@ if (fmtbar) {
   document.getElementById("fmtSizeDown").addEventListener("click", () => changeSize(-2));
 }
 
+// ---- フォント選択 (frontmatter font: に書き戻し) ----
+const fontSelEl = document.getElementById("fontSel");
+if (fontSelEl) fontSelEl.addEventListener("change", () => {
+  mdEl.value = setFrontmatterKey(mdEl.value, "font", fontSelEl.value);
+  update(); baselineHistory();
+});
+
 // ---- ファイルドロップ ----
 mdEl.addEventListener("input", () => { clearTimeout(window._t); window._t = setTimeout(() => { update(); baselineHistory(); }, 150); });
 mdEl.addEventListener("dragover", (e) => e.preventDefault());
@@ -648,6 +658,10 @@ async function init() {
   if (!mdEl.value.trim()) mdEl.value = SAMPLE;
   update();
   baselineHistory();
+  // Webフォント読込後に再計測 (フォント未ロード時の幅ズレを補正)
+  if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => update());
+  }
 }
 
 // 初期表示は機能ショーケース (examples/demo_slides.md と同内容)
