@@ -780,6 +780,14 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); setCurrentSlide(currentSlide - 1); }
 });
 window.addEventListener("resize", () => { if (selected) { const r = slidesEl.querySelector(".sel-rect"); if (r) positionFmtbar(r); } });
+// Esc で選択解除
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && selected && document.activeElement !== mdEl) {
+    selected = null; charMode = null; clearSelection(); hideFmtbar();
+    slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
+    updateFmtbar();
+  }
+});
 
 // ---- QR オーバーレイのボタン ----
 document.getElementById("qrDone").addEventListener("click", recheckDict);
