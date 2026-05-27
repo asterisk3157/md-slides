@@ -29,7 +29,9 @@
   .slide { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-bottom: 1rem; padding: 0.5rem; }
   .slide.overflow { box-shadow: 0 0 0 2px #dc2626, 0 1px 4px rgba(0,0,0,.1); }
   .slide.active { background: #eaf2ff; box-shadow: 0 0 0 2px #93b4f5, 0 1px 6px rgba(0,0,0,.12); }
-  .fmt-hint { margin-left: auto; font-size: 0.76rem; color: #9aa0a6; white-space: nowrap; }
+  /* 編集ヒント: フロー外の固定トースト。出入りしてもツールバー高さ＝レイアウトが動かない。 */
+  .fmt-hint { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30; pointer-events: none; white-space: nowrap; font-size: 0.76rem; color: #fff; background: rgba(33,37,41,0.82); padding: 0.32rem 0.8rem; border-radius: 999px; box-shadow: 0 2px 12px rgba(0,0,0,.28); }
+  .fmt-hint:empty { display: none; }
   .slide .num { font-size: 0.75rem; color: #888; margin: 0.1rem 0 0.3rem 0.4rem; }
   .slide .ovwarn { color: #dc2626; font-weight: 600; margin-left: 0.5rem; }
   .slide svg { max-width: 100%; height: auto; display: block; }
