@@ -239,6 +239,8 @@ select,input,textarea{ font: inherit; color: inherit; }
     <symbol id="i-clear" viewBox="0 0 24 24"><path fill="currentColor" d="M3.27 5 2 6.27l6.97 6.97L6.5 18h3l1.57-3.66L16.73 20 18 18.73zM6 5l2 2h.5l-.6 1.4 1.55 1.55L11 6h3v3.5l1.36 1.36L15.5 5z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H8V7h11z"/></symbol>
     <symbol id="i-reset" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5V2L7 7l5 5V8a6 6 0 1 1-5.9 7H4.07A8 8 0 1 0 12 5"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path fill="currentColor" d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></symbol>
     <symbol id="i-fit" viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zm-2-12v2h3v3h2V5z"/></symbol>
   </defs>
@@ -252,8 +254,8 @@ select,input,textarea{ font: inherit; color: inherit; }
       <div class="brand-wm"><em>md</em>-slides</div>
     </a>
     <div class="grow"></div>
-    <button id="save" class="icon-btn" title="レイアウトを保存"><svg><use href="#i-save"/></svg></button>
-    <button id="resetSel" class="icon-btn" title="選択を初期化"><svg><use href="#i-reset"/></svg></button>
+    <button id="undo" class="icon-btn" title="元に戻す (⌘Z)"><svg><use href="#i-undo"/></svg></button>
+    <button id="redo" class="icon-btn" title="やり直し (⌘Y / ⌘⇧Z)"><svg><use href="#i-redo"/></svg></button>
     <button id="openSettings" class="icon-btn" title="設定"><svg><use href="#i-settings"/></svg></button>
     <div class="divider-v"></div>
     <button id="dl" class="btn-filled" title="編集できる .pptx をダウンロード"><svg><use href="#i-download"/></svg>ダウンロード</button>

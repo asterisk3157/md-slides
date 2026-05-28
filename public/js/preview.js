@@ -182,6 +182,7 @@ function update(opts) {
   if (selected && selected.slide === currentSlide) drawSelection(); else hideFmtbar();
   updateFmtbar();
   renderMdHighlight();
+  if (typeof updateUndoRedoBtns === "function") updateUndoRedoBtns();
 }
 
 // フィルムストリップ/ナビからスライド切替。選択は解除。
@@ -731,14 +732,14 @@ document.getElementById("dl").addEventListener("click", () => {
   } catch (e) { setStatus("err", "pptx生成エラー: " + (e && e.message ? e.message : e)); console.error(e); }
 });
 
-$("save").addEventListener("click", () => { persist(); setStatus("ok", "位置を保存しました"); });
-$("resetSel").addEventListener("click", () => {
-  if (selected && overrides[selected.slide] && overrides[selected.slide][selected.block]) {
-    if (selected.el != null && overrides[selected.slide][selected.block].els) delete overrides[selected.slide][selected.block].els[selected.el];
-    else delete overrides[selected.slide][selected.block];
-    persist(); update(); recordHistory();
-  }
-});
+// 元に戻す / やり直し (アプリバー)。状態はキー操作・ボタンどちらでも更新。
+$("undo") && $("undo").addEventListener("click", () => { undo(); updateUndoRedoBtns(); });
+$("redo") && $("redo").addEventListener("click", () => { redo(); updateUndoRedoBtns(); });
+function updateUndoRedoBtns() {
+  const u = $("undo"), r = $("redo");
+  if (u) { const can = histIdx > 0; u.disabled = !can; u.style.opacity = can ? "1" : "0.4"; }
+  if (r) { const can = histIdx < history.length - 1; r.disabled = !can; r.style.opacity = can ? "1" : "0.4"; }
+}
 $("resetAll").addEventListener("click", () => {
   overrides = {}; selected = null; charMode = null; persist(); update(); recordHistory();
   setSettingsOpen(false);
