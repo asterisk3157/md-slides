@@ -1,5 +1,7 @@
 # md-slides
 
+🔗 **公開URL**: <https://md-slides.pages.dev/preview>
+
 > Markdown を打つと、整ったスライドがすぐ出る — テキスト専用・ブラウザ完結・
 > 編集可能な PowerPoint ファイル (.pptx) を出力する Web アプリ。
 
