@@ -158,14 +158,26 @@ function update(opts) {
   const stEl = $("stage");
   if (stEl) stEl.classList.toggle("has-selection", !!selected);
 
-  // サムネイル (全スライド)
+  // サムネイル (全スライド) — role="tab" + aria-selected + tabindex で role="tablist" を補完
   const thumbsEl = $("thumbs");
   if (thumbsEl) {
-    thumbsEl.innerHTML = slides.map((s, i) =>
-      `<div class="thumb${i === currentSlide ? " is-active" : ""}" data-idx="${i}"><span class="thumb-num">${i + 1}</span>` +
-      slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack, thumb: true, grid: false }) +
-      `</div>`).join("");
-    thumbsEl.querySelectorAll(".thumb").forEach((t) => t.addEventListener("click", () => setCurrentSlide(parseInt(t.dataset.idx, 10))));
+    thumbsEl.innerHTML = slides.map((s, i) => {
+      const act = i === currentSlide;
+      return `<div class="thumb${act ? " is-active" : ""}" data-idx="${i}" role="tab" aria-selected="${act}" tabindex="${act ? 0 : -1}" aria-label="スライド ${i + 1}"><span class="thumb-num">${i + 1}</span>` +
+        slideItemsToSvg(s.blocks, slideWCm, slideHCm, { pxPerCm: PX, defaultColor: color, fontFamily: result.fontStack, thumb: true, grid: false }) +
+        `</div>`;
+    }).join("");
+    thumbsEl.querySelectorAll(".thumb").forEach((t) => {
+      t.addEventListener("click", () => setCurrentSlide(parseInt(t.dataset.idx, 10)));
+      t.addEventListener("keydown", (e) => {
+        const idx = parseInt(t.dataset.idx, 10);
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setCurrentSlide(idx); }
+        else if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); setCurrentSlide(Math.min(slides.length - 1, idx + 1)); thumbsEl.querySelector(".thumb.is-active")?.focus(); }
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); setCurrentSlide(Math.max(0, idx - 1)); thumbsEl.querySelector(".thumb.is-active")?.focus(); }
+        else if (e.key === "Home") { e.preventDefault(); setCurrentSlide(0); thumbsEl.querySelector(".thumb.is-active")?.focus(); }
+        else if (e.key === "End") { e.preventDefault(); setCurrentSlide(slides.length - 1); thumbsEl.querySelector(".thumb.is-active")?.focus(); }
+      });
+    });
   }
 
   // アクティブスライド (16:9 カード)
@@ -420,7 +432,7 @@ function clearSelection() {
 }
 // フローティング文脈ツールバー: 選択時だけ表示し、選択近傍に配置。
 function hideFmtbar() {
-  const bar = $("fmtbar"); if (bar) bar.classList.remove("is-visible");
+  const bar = $("fmtbar"); if (bar) { bar.classList.remove("is-visible"); bar.setAttribute("aria-hidden", "true"); }
   const pop = $("fmtColorPop"); if (pop) pop.classList.remove("is-open");
   const stage = $("stage"); if (stage) { stage.classList.remove("editing"); stage.classList.remove("has-selection"); }
 }
@@ -442,6 +454,7 @@ function showFmtbar(anchorEl) {
     ? "ドラッグで移動・別の場所をクリックで解除"
     : "ドラッグで移動・角でリサイズ・ダブルクリックで文字を編集";
   bar.classList.add("is-visible");
+  bar.setAttribute("aria-hidden", "false");
   requestAnimationFrame(() => positionFmtbar(anchorEl));
 }
 function applyOv(p, ox, oy, ov) {
@@ -477,9 +490,8 @@ function drawSelection() {
   const w = Math.abs(corners[1][0] - corners[0][0]) * PX, h = Math.abs(corners[1][1] - corners[0][1]) * PX;
   const NS = "http://www.w3.org/2000/svg";
   const rect = document.createElementNS(NS, "rect");
-  rect.setAttribute("class", "sel-rect");
+  rect.setAttribute("class", "sel-rect" + (el != null ? " is-el" : ""));
   rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", Math.max(w, 4)); rect.setAttribute("height", Math.max(h, 4));
-  rect.setAttribute("fill", "rgba(0,100,255,0.06)"); rect.setAttribute("stroke", el != null ? "#0a0" : "#06c"); rect.setAttribute("stroke-width", "1.5"); rect.setAttribute("stroke-dasharray", "5 4");
   rect.style.pointerEvents = "none";
   svg.appendChild(rect);
   if (el == null) { // ブロック選択時のみリサイズハンドル
@@ -487,7 +499,6 @@ function drawSelection() {
     const handle = document.createElementNS(NS, "rect");
     handle.setAttribute("class", "handle-rect");
     handle.setAttribute("x", x + w - hs / 2); handle.setAttribute("y", y + h - hs / 2); handle.setAttribute("width", hs); handle.setAttribute("height", hs);
-    handle.setAttribute("fill", "#06c"); handle.setAttribute("stroke", "#fff"); handle.setAttribute("stroke-width", "1.5");
     handle.style.cursor = "nwse-resize";
     svg.appendChild(handle);
   }

@@ -364,10 +364,11 @@ select,input,textarea{ font: inherit; color: inherit; }
 .blk:not(.charmode):hover .bhit{ fill: rgba(11,87,208,.06); }
 .blk.charmode .ehit{ pointer-events: all; cursor: move; stroke: #0a8754; stroke-width: 0.8; stroke-dasharray: 2 2; }
 .blk.charmode .ehit:hover{ fill: rgba(10,135,84,.10); }
-/* JS が createElementNS で直接 stroke/fill を当てているが、CSS で M3 primary に整える */
-.slide-card svg .sel-rect{ fill: rgba(11,87,208,.06) !important; stroke: var(--p-40) !important; stroke-width: 1.5; stroke-dasharray: 5 4; }
-.slide-card svg .blk.charmode .sel-rect{ stroke: #0a8754 !important; }
-.slide-card svg .handle-rect{ fill: var(--p-40) !important; stroke: #fff !important; stroke-width: 1.5; }
+/* 選択枠は CSS が単一情報源。JS は class だけ付け、色は M3 トークン (primary/charmode 緑) で出す。 */
+.slide-card svg .sel-rect{ fill: rgba(11,87,208,.06); stroke: var(--p-40); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.slide-card svg .sel-rect.is-el{ fill: rgba(10,135,84,.06); stroke: #0a8754; }
+.slide-card svg .blk.charmode .sel-rect{ stroke: #0a8754; }
+.slide-card svg .handle-rect{ fill: var(--p-40); stroke: #fff; stroke-width: 1.5; }
 .slide-card svg .handle-rect:hover{ stroke-width: 2; }
 .legacy-hidden{ display: none !important; }
 
@@ -454,7 +455,7 @@ select,input,textarea{ font: inherit; color: inherit; }
   </header>
 
   <!-- FORMAT BAR (contextual, floating) -->
-  <nav id="fmtbar" class="fmtbar" aria-label="書式ツールバー" role="toolbar">
+  <nav id="fmtbar" class="fmtbar" aria-label="書式ツールバー" role="toolbar" aria-hidden="true">
     <div class="group">
       <button id="fmtBold" class="tgl" title="太字" aria-label="太字" aria-pressed="false"><span class="i-bold" aria-hidden="true">B</span></button>
       <div style="position:relative">
