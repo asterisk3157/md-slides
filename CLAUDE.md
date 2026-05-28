@@ -35,8 +35,9 @@ md-slides/
 │           ├── pptxtext.js   ★新   # ネイティブテキストpptx(テキストボックス/線/円/freeform)
 │           ├── zip.js              # pptx zip ライター
 │           └── (layout/flow/formula配置/pptxbuild/dict/qr = handwriting レガシー・未使用)
-├── functions/api/{export,theme}.ts # handwriting 由来・テキストモードでは未使用(レガシー)
 └── docs/requirements.md            # 要件定義
+※ handwriting 版で使っていた functions/api/{export,theme}.ts (D1 連携) は削除済み。
+   Pages Functions は無し＝完全静的配信。
 
 描画の中間表現 RenderItem(cm座標, y下向き):
   {t:"text",x,y(baseline),size,text,bold,color,italic}/{t:"line",x1,y1,x2,y2,w}
