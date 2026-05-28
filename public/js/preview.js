@@ -248,12 +248,17 @@ function setAnimDir(dir) {
   if (ov.anim === dir) delete ov.anim; else ov.anim = dir;
   persist(); update(); recordHistory();
 }
+// 矢印アイコン↔保存する dir のマッピング: 矢印は「進む方向」を示す (例 ←=左に進む=右から登場=wipe(right))。
+const ANIM_MAP = [["right", "animLeft"], ["down", "animUp"], ["up", "animDown"], ["left", "animRight"], ["none", "animNone"]];
 function updateAnimBtns(enabled, curDir) {
-  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"], ["none", "animNone"]]) {
+  // global anim ON で個別指定なしなら、既定方向 "left" (=右に進む / 左から登場 / animRight ボタン) を強調。
+  const globalOn = lastResult && lastResult.anim !== false;
+  const eff = curDir != null ? curDir : (enabled && globalOn ? "left" : null);
+  for (const [dir, id] of ANIM_MAP) {
     const b = document.getElementById(id);
     if (!b) continue;
     b.disabled = !enabled; b.style.opacity = enabled ? "1" : "0.4";
-    b.classList.toggle("is-on", enabled && curDir === dir);
+    b.classList.toggle("is-on", enabled && eff === dir);
   }
 }
 
@@ -692,7 +697,7 @@ if (fmtbar) {
   document.addEventListener("click", (e) => { if (colorPop && colorPop.classList.contains("is-open") && !e.target.closest("#fmtColorPop") && !e.target.closest("#fmtColorBtn")) closeColorPop(); });
   $("fmtSizeUp").addEventListener("click", () => changeSize(2));
   $("fmtSizeDown").addEventListener("click", () => changeSize(-2));
-  for (const [dir, id] of [["left", "animLeft"], ["up", "animUp"], ["down", "animDown"], ["right", "animRight"], ["none", "animNone"]]) {
+  for (const [dir, id] of ANIM_MAP) {
     const b = $(id); if (b) b.addEventListener("click", () => setAnimDir(dir));
   }
 }
