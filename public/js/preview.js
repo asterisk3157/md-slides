@@ -187,6 +187,19 @@ function update(opts) {
   updateFmtbar();
   renderMdHighlight();
   if (typeof updateUndoRedoBtns === "function") updateUndoRedoBtns();
+  // フィルムストリップ: 選択サムネを中央へ。スライド切替時はsmooth、編集時は瞬時(再描画でscrollLeftがリセットされる対策)。
+  scrollActiveThumbIntoCenter(currentSlide !== _lastScrolledSlide);
+  _lastScrolledSlide = currentSlide;
+}
+let _lastScrolledSlide = -1;
+function scrollActiveThumbIntoCenter(smooth) {
+  const t = $("thumbs"); if (!t) return;
+  const active = t.querySelector(".thumb.is-active"); if (!active) return;
+  const tr = t.getBoundingClientRect();
+  const ar = active.getBoundingClientRect();
+  const delta = (ar.left + ar.width / 2) - (tr.left + tr.width / 2);
+  if (Math.abs(delta) < 1) return;
+  t.scrollTo({ left: t.scrollLeft + delta, behavior: smooth ? "smooth" : "auto" });
 }
 
 // フィルムストリップ/ナビからスライド切替。選択は解除。
@@ -198,8 +211,6 @@ function setCurrentSlide(i) {
   selected = null; charMode = null;
   update();
   syncMdToSlide(i);
-  const at = $("thumbs") && $("thumbs").querySelector(".thumb.is-active");
-  if (at) at.scrollIntoView({ inline: "nearest", block: "nearest" });
 }
 function syncMdToSlide(i) {
   if (document.activeElement === mdEl) return;
