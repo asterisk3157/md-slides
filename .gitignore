@@ -2,3 +2,7 @@ node_modules/
 .wrangler/
 .dev.vars
 *.log
+# サブエージェントの worktree 退避用 (実体は別ディレクトリ管理)
+.claude/worktrees/
+# OS / エディタの一時ファイル
+.DS_Store

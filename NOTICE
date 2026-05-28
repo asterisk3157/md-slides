@@ -1,0 +1,45 @@
+md-slides
+=========
+
+このプロジェクトでは以下の第三者リソースを利用しています。各リソースは
+それぞれのライセンスのもとで提供されており、本リポジトリには再配布せず、
+利用者のブラウザが CDN から取得する／OS にバンドルされたものを参照する
+形で使われています。
+
+Web フォント（Google Fonts CDN 経由）
+-----------------------------------
+- Roboto, Roboto Mono — Apache License 2.0
+  https://github.com/googlefonts/roboto
+- Noto Sans JP, Noto Serif JP — SIL Open Font License 1.1
+  https://fonts.google.com/noto
+- M PLUS Rounded 1c — SIL Open Font License 1.1
+  Copyright (c) 2016, Coji Morishita
+- BIZ UDPGothic — SIL Open Font License 1.1
+  Copyright (c) 2022, Morisawa Inc.
+- Klee One — SIL Open Font License 1.1
+  Copyright (c) 2018, Fontworks Inc.
+- LINE Seed Sans JP — SIL Open Font License 1.1
+  Copyright (c) 2022, LINE Corporation
+
+OS バンドルフォントの参照（同梱なし）
+-------------------------------------
+CSS / pptx 出力での font-family 名のみを指定しています。フォントファイル
+自体は同梱せず、表示する端末の OS にインストールされたフォントを使用します。
+
+- 游ゴシック / 游明朝 (Yu Gothic / Yu Mincho) — Microsoft / Apple バンドル
+- メイリオ (Meiryo), MS ゴシック (MS Gothic) — Microsoft バンドル
+- ヒラギノ角ゴ / 明朝 (Hiragino) — Apple バンドル
+- UD デジタル教科書体 (UD Digi Kyokasho) — Microsoft / Morisawa
+  ※非搭載環境では BIZ UDPGothic (OFL) にフォールバック
+
+UI アイコン
+-----------
+SVG シンボル (public/preview.html 内 <symbol>) の一部は Material Symbols /
+Material Design Icons (Apache License 2.0, by Google) の図形を参考に再構成
+したものを含みます。
+https://github.com/google/material-design-icons
+
+ライセンス全文
+-------------
+Apache License 2.0:    https://www.apache.org/licenses/LICENSE-2.0
+SIL Open Font License: https://scripts.sil.org/OFL
