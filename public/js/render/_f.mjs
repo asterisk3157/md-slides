@@ -1,0 +1,10 @@
+import { createRenderer } from "./index.js";
+import { applySlideOverrides } from "./overrides.js";
+import { buildPptxText } from "./pptxtext.js";
+import fs from "node:fs";
+const md = `---\nfont: Yu Mincho, YuMincho, Noto Serif JP\n---\n# 確認\n- 本文テスト\n`;
+const r = createRenderer({}).render(md,{},{});
+const sk = JSON.parse(fs.readFileSync("../../skeleton.json","utf8")).parts;
+const bytes = buildPptxText(r.slides.map(s=>s.blocks), { color:"#000000", fontName: r.fontFamily, anim:true }, sk);
+fs.writeFileSync("/tmp/yu.pptx", Buffer.from(bytes));
+console.log("ok bytes:", bytes.length, "doc.meta.font:", r.doc.meta.font);

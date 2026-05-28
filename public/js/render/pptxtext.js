@@ -30,7 +30,9 @@ function textSp(it, id, fontName) {
   const cx = Math.max(emu(w) + emu(size * 0.3), 1), cy = Math.max(emu(size * 1.25), 1);
   const b = it.bold ? ' b="1"' : "", i = it.italic ? ' i="1"' : "";
   const col = srgb(it.color);
-  const fn = escXml(it.font || fontName);
+  // it.font はカンマ区切りスタックの可能性 → 先頭名を採用 (pptx は単一 typeface 名)
+  const fnRaw = (it.font || fontName || "").split(",")[0].trim().replace(/^['"]|['"]$/g, "");
+  const fn = escXml(fnRaw);
   return [
     "<p:sp>",
     `<p:nvSpPr><p:cNvPr id="${id}" name="t${id}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>`,

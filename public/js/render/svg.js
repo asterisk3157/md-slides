@@ -146,7 +146,14 @@ function itemToSvg(it, px, defaultColor, fontFamily, ovColor, ovBold, ovFont) {
     const bold = ovBold != null ? ovBold : it.bold;
     const fw = bold ? ' font-weight="bold"' : "";
     const fs = it.italic ? ' font-style="italic"' : "";
-    const fam = (ovFont || it.font) ? `'${ovFont || it.font}', ${fontFamily}` : fontFamily;
+    // ovFont はカンマ区切りスタックを許容 (例: "Yu Mincho, YuMincho, Noto Serif JP")。
+    // 各名を引用符で囲み、最後に既定スタックを付ける → 閲覧者の OS に応じてフォールバック。
+    const raw = ovFont || it.font;
+    let fam = fontFamily;
+    if (raw) {
+      const names = raw.split(",").map((s) => s.trim()).filter(Boolean).map((n) => `'${n.replace(/'/g, "")}'`);
+      fam = names.join(", ") + ", " + fontFamily;
+    }
     return `<text x="${(it.x * px).toFixed(2)}" y="${(it.y * px).toFixed(2)}" font-family="${escXml(fam)}" font-size="${(it.size * px).toFixed(2)}"${fw}${fs} fill="${fill}">${escXml(it.text)}</text>`;
   }
   const color = ovColor != null ? ovColor : (it.color || defaultColor);

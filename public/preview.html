@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=1440" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;700&family=BIZ+UDPGothic:wght@400;700&family=Klee+One:wght@400;600&family=Shippori+Mincho:wght@400;700&family=Kosugi+Maru&family=Yusei+Magic&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;700&family=BIZ+UDPGothic:wght@400;700&family=Klee+One:wght@400;600&family=LINE+Seed+Sans+JP:wght@400;700&display=swap" rel="stylesheet" />
 <style>
 /* =========================================================
    md-slides — Material 3 風 (オリジナル / 非 Google ブランド)
@@ -289,15 +289,18 @@ select,input,textarea{ font: inherit; color: inherit; }
       <div class="field">
         <select id="fontSel" aria-label="フォント" title="この要素のフォント">
           <option value="">既定</option>
-          <option value="Noto Sans JP">ゴシック</option>
-          <option value="Zen Kaku Gothic New">現代ゴシック</option>
-          <option value="BIZ UDPGothic">UDゴシック</option>
+          <option value="Noto Sans JP">Noto Sans</option>
+          <option value="LINE Seed Sans JP">LINE Seed</option>
+          <option value="UD デジタル教科書体 N-R, BIZ UDPGothic">UD 教科書体</option>
+          <option value="Yu Gothic, YuGothic, Noto Sans JP">游ゴシック</option>
+          <option value="Yu Mincho, YuMincho, Noto Serif JP">游明朝</option>
+          <option value="Meiryo, Noto Sans JP">メイリオ</option>
+          <option value="MS Gothic, MS ゴシック, ＭＳ ゴシック, Noto Sans JP">MS ゴシック</option>
+          <option value="Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP">ヒラギノ角ゴ</option>
+          <option value="Hiragino Mincho ProN, Noto Serif JP">ヒラギノ明朝</option>
           <option value="Noto Serif JP">明朝</option>
-          <option value="Shippori Mincho">雅明朝</option>
           <option value="M PLUS Rounded 1c">丸ゴシック</option>
-          <option value="Kosugi Maru">やわ丸</option>
           <option value="Klee One">筆書き</option>
-          <option value="Yusei Magic">ポップ</option>
         </select>
         <svg class="caret"><use href="#i-caret-down"/></svg>
       </div>
@@ -364,15 +367,18 @@ select,input,textarea{ font: inherit; color: inherit; }
         <div><div class="label">既定のフォント</div><div class="desc">すべてのスライドの本文に使う書体</div></div>
         <div class="field" style="height:38px">
           <select id="setDefaultFont">
-            <option value="">ゴシック (Noto Sans JP)</option>
-            <option value="Zen Kaku Gothic New">現代ゴシック (Zen Kaku Gothic New)</option>
-            <option value="BIZ UDPGothic">UDゴシック (BIZ UDPGothic)</option>
-            <option value="Noto Serif JP">明朝 (Noto Serif JP)</option>
-            <option value="Shippori Mincho">雅明朝 (Shippori Mincho)</option>
-            <option value="M PLUS Rounded 1c">丸ゴシック (M PLUS Rounded 1c)</option>
-            <option value="Kosugi Maru">やわ丸 (Kosugi Maru)</option>
-            <option value="Klee One">筆書き (Klee One)</option>
-            <option value="Yusei Magic">ポップ (Yusei Magic)</option>
+            <option value="">Noto Sans JP（既定）</option>
+            <option value="LINE Seed Sans JP">LINE Seed Sans JP</option>
+            <option value="UD デジタル教科書体 N-R, BIZ UDPGothic">UD 教科書体（Windows搭載／他は BIZ UDPGothic）</option>
+            <option value="Yu Gothic, YuGothic, Noto Sans JP">游ゴシック（Windows/Mac）</option>
+            <option value="Yu Mincho, YuMincho, Noto Serif JP">游明朝（Windows/Mac）</option>
+            <option value="Meiryo, Noto Sans JP">メイリオ（Windows）</option>
+            <option value="MS Gothic, MS ゴシック, ＭＳ ゴシック, Noto Sans JP">MS ゴシック（Windows）</option>
+            <option value="Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP">ヒラギノ角ゴ（Mac）</option>
+            <option value="Hiragino Mincho ProN, Noto Serif JP">ヒラギノ明朝（Mac）</option>
+            <option value="Noto Serif JP">Noto Serif JP（明朝）</option>
+            <option value="M PLUS Rounded 1c">M PLUS Rounded 1c（丸ゴシック）</option>
+            <option value="Klee One">Klee One（筆書き）</option>
           </select>
           <svg class="caret"><use href="#i-caret-down"/></svg>
         </div>

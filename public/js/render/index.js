@@ -15,8 +15,10 @@ import { createFormulaFont } from "./formulafont.js";
 export const DEFAULT_FONT_STACK = "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Yu Gothic UI', sans-serif";
 function resolveFontStack(font) {
   if (!font) return DEFAULT_FONT_STACK;
-  // 単一フォント名を指定されたら、CJK/汎用フォールバックを後ろに足す
-  return `'${font}', ${DEFAULT_FONT_STACK}`;
+  // font はカンマ区切りスタック許容 ("Yu Mincho, YuMincho, Noto Serif JP")。
+  // 各名を引用符で囲み、既定スタックを後ろに付ける。
+  const names = font.split(",").map((s) => s.trim()).filter(Boolean).map((n) => `'${n.replace(/'/g, "")}'`);
+  return names.join(", ") + ", " + DEFAULT_FONT_STACK;
 }
 
 function mergeMetrics(base, override) {
