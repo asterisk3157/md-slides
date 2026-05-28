@@ -33,8 +33,12 @@ function recordHistory() {                 // 確定した編集を1手として
   history.push(snapshot());
   if (history.length > 100) history.shift();
   histIdx = history.length - 1;
+  if (typeof updateUndoRedoBtns === "function") updateUndoRedoBtns();
 }
-function baselineHistory() { history = [snapshot()]; histIdx = 0; } // 新規文書の基準点
+function baselineHistory() { history = [snapshot()]; histIdx = 0; if (typeof updateUndoRedoBtns === "function") updateUndoRedoBtns(); }
+// 読み取り専用の override スナップショット (ドラッグ開始時の ov0 用。クリックだけで履歴を汚さない)。
+function readBlockOv(slide, block) { return { dx: 0, dy: 0, s: 1, ...((overrides[slide] || {})[block] || {}) }; }
+function readElOv(slide, block, el) { const bo = (overrides[slide] || {})[block] || {}; return { dx: 0, dy: 0, s: 1, ...((bo.els || {})[el] || {}) }; }
 function persist() { mdEl.value = writeOverridesToMd(mdEl.value, overrides); } // MD frontmatterへ書き戻し
 function undo() {
   if (histIdx <= 0) { setStatus("warn", "これ以上戻せません"); return; }
@@ -284,7 +288,7 @@ function onSvgPointerDown(e, slide, svg) {
   const handle = e.target.closest(".handle-rect");
   if (handle && selected && selected.el == null) {
     // ブロックのリサイズ
-    drag = { kind: "block", mode: "resize", slide: selected.slide, block: selected.block, startCm: [cx, cy], ov0: { ...ovFor(selected.slide, selected.block) }, svg };
+    drag = { kind: "block", mode: "resize", slide: selected.slide, block: selected.block, startCm: [cx, cy], ov0: readBlockOv(selected.slide, selected.block), svg };
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
   }
   // 文字編集モード中、編集中ブロック内の要素クリック (ehit/グリフどちらでも) → 要素選択/ドラッグ。
@@ -297,7 +301,7 @@ function onSvgPointerDown(e, slide, svg) {
     const el = parseInt(elHit.dataset.el, 10);
     selected = { slide, block: charMode.block, el };
     drawSelection();
-    drag = { kind: "el", mode: "move", slide, block: charMode.block, el, startCm: [cx, cy], ov0: { ...elOvFor(slide, charMode.block, el) }, svg };
+    drag = { kind: "el", mode: "move", slide, block: charMode.block, el, startCm: [cx, cy], ov0: readElOv(slide, charMode.block, el), svg };
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
   }
   // ブロック選択 (bhit)
@@ -318,7 +322,7 @@ function onSvgPointerDown(e, slide, svg) {
     }
     selected = { slide, block, el: null };
     drawSelection();
-    drag = { kind: "block", mode: "move", slide, block, startCm: [cx, cy], ov0: { ...ovFor(slide, block) }, svg };
+    drag = { kind: "block", mode: "move", slide, block, startCm: [cx, cy], ov0: readBlockOv(slide, block), svg };
     svg.setPointerCapture(e.pointerId); e.preventDefault();
   } else {
     lastTap = null;
