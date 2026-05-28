@@ -10,6 +10,13 @@
 <style>
 /* =========================================================
    md-slides — Material 3 風 (オリジナル / 非 Google ブランド)
+   ---------------------------------------------------------
+   設計方針:
+   - M3 tokens は CSS 変数化 (palette/state/motion/duration)
+   - state layer は擬似要素 (::before) で表現し、色を on-surface 系で追随
+   - focus-visible 専用の focus ring (キーボード操作時のみ可視)
+   - prefers-reduced-motion をリスペクト
+   - ダークテーマは現状スコープ外
    ========================================================= */
 :root{
   --p-0:#000000; --p-10:#001a41; --p-20:#002e6e; --p-30:#00429b;
@@ -34,194 +41,370 @@
   --r-xs:4px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:28px; --r-full:9999px;
   --font-sans: "Roboto","Helvetica Neue",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono: "Roboto Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;
-  --easing-emph: cubic-bezier(.2,0,0,1); --easing-std: cubic-bezier(.2,0,0,1);
+  /* M3 motion tokens: 役割で easing と duration を分離 */
+  --easing-std:           cubic-bezier(.2, 0, 0, 1);       /* standard: 一般トランジション */
+  --easing-std-accel:     cubic-bezier(.3, 0, 1, 1);       /* standard accelerate: 退出 */
+  --easing-std-decel:     cubic-bezier(0, 0, 0, 1);        /* standard decelerate: 登場 */
+  --easing-emph:          cubic-bezier(.2, 0, 0, 1);       /* emphasized: 強調 */
+  --easing-emph-accel:    cubic-bezier(.3, 0, .8, .15);    /* emphasized accelerate */
+  --easing-emph-decel:    cubic-bezier(.05, .7, .1, 1);    /* emphasized decelerate */
+  --dur-short-1: 50ms;  --dur-short-2: 100ms; --dur-short-3: 150ms; --dur-short-4: 200ms;
+  --dur-med-1:   250ms; --dur-med-2:   300ms; --dur-med-3:   350ms; --dur-med-4:   400ms;
+  --dur-long-1:  450ms; --dur-long-2:  500ms;
+  /* State layer: M3 では on-surface 色の 8/12/16% を hover/focus/pressed に重ねる */
+  --state-hover:    rgba(27, 27, 31, 0.08);   /* on-surface @ 8% */
+  --state-focus:    rgba(27, 27, 31, 0.10);   /* focus visible @ 10% */
+  --state-pressed:  rgba(27, 27, 31, 0.12);   /* pressed @ 12% */
+  --state-on-primary-hover:   rgba(255, 255, 255, 0.10);  /* on-primary 上の hover */
+  --state-on-primary-pressed: rgba(255, 255, 255, 0.16);
+  --state-primary-hover:   rgba(11, 87, 208, 0.08);       /* primary 系の hover/focus */
+  --state-primary-focus:   rgba(11, 87, 208, 0.10);
+  --state-primary-pressed: rgba(11, 87, 208, 0.12);
 }
 *,*::before,*::after{ box-sizing: border-box; }
-html,body{ margin:0; padding:0; height:100%; overflow:hidden; background: var(--surface); color: var(--on-surface); font-family: var(--font-sans); font-size:14px; -webkit-font-smoothing: antialiased; }
-button{ font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+html,body{ margin:0; padding:0; height:100%; overflow:hidden; background: var(--surface); color: var(--on-surface); font-family: var(--font-sans); font-size:14px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; font-feature-settings: "kern" 1, "palt" 1; }
+button{ font: inherit; color: inherit; background: none; border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 select,input,textarea{ font: inherit; color: inherit; }
 ::selection{ background: var(--p-90); color: var(--p-10); }
 
+/* M3 focus ring: キーボード操作時のみ表示 (focus-visible) */
+:focus{ outline: none; }
+:focus-visible{ outline: 2px solid var(--primary); outline-offset: 2px; border-radius: inherit; }
+.icon-btn:focus-visible, .tgl:focus-visible, .nav:focus-visible, .seg-btn:focus-visible, .stepper button:focus-visible{ outline-offset: 0; box-shadow: 0 0 0 2px var(--surface-container), 0 0 0 4px var(--primary); }
+.btn-filled:focus-visible, .btn-tonal:focus-visible, .btn-outlined:focus-visible, .btn-danger:focus-visible{ outline-offset: 2px; }
+.radio-item:focus-visible{ outline-offset: -2px; }
+.switch:focus-visible{ outline-offset: 3px; }
+
+/* --- M3 typography scale (役割で粒度を分ける) --- */
+.t-display-s{ font-size: 36px; line-height: 44px; font-weight: 400; letter-spacing: 0; }
+.t-headline-s{ font-size: 24px; line-height: 32px; font-weight: 400; letter-spacing: 0; }
+.t-title-l{ font-size: 22px; line-height: 28px; font-weight: 500; letter-spacing: 0; }
+.t-title-m{ font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: .015em; }
+.t-title-s{ font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: .01em; }
+.t-body-l{ font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: .03em; }
+.t-body-m{ font-size: 14px; line-height: 20px; font-weight: 400; letter-spacing: .02em; }
+.t-body-s{ font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: .03em; }
+.t-label-l{ font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: .01em; }
+.t-label-m{ font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .04em; }
+.t-label-s{ font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: .05em; }
+
 .app{ display:grid; grid-template-rows: 64px 1fr 28px; height:100vh; min-width: 1280px; }
 
-/* --- 1. Top app bar --- */
-.appbar{ display:flex; align-items:center; gap:16px; padding: 0 16px 0 12px; background: var(--surface-container); border-bottom: 1px solid var(--outline-variant); position:relative; z-index: 4; }
-.appbar .brand{ display:flex; align-items:center; gap:12px; padding: 6px 10px 6px 8px; border-radius: var(--r-full); text-decoration:none; }
-.brand-mark{ width: 32px; height: 32px; border-radius: 8px; background: var(--p-40); display:grid; place-items:center; color: #fff; font-weight:700; font-size: 16px; letter-spacing:-.02em; }
-.brand-wm{ font-weight:500; font-size: 20px; letter-spacing:-.01em; color: var(--on-surface); }
+/* --- 1. Top app bar (M3 small top app bar) ---
+   surface-container は base surface に primary tint を 5% 程度重ねた色味で、
+   高さの錯覚を生む。M3 spec の elevation level 2 相当。 */
+.appbar{ display:flex; align-items:center; gap:12px; padding: 0 12px; background: var(--surface-container); border-bottom: 1px solid var(--outline-variant); position:relative; z-index: 4; }
+.appbar .brand{ display:flex; align-items:center; gap:12px; padding: 6px 12px 6px 8px; border-radius: var(--r-full); text-decoration:none; position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std); }
+.appbar .brand::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.appbar .brand:hover::before{ opacity: .06; }
+.appbar .brand:active::before{ opacity: .10; transition-duration: 0ms; }
+.brand-mark{ width: 32px; height: 32px; border-radius: 8px; background: var(--p-40); display:grid; place-items:center; color: #fff; font-weight:700; font-size: 18px; letter-spacing:-.02em; line-height: 1; box-shadow: var(--elev-1); }
+.brand-wm{ font-weight:500; font-size: 20px; line-height: 28px; letter-spacing:-.005em; color: var(--on-surface); }
 .brand-wm em{ font-style: normal; color: var(--on-surface); font-weight:700; }
 .appbar .grow{ flex:1; }
-.status-pill{ display:inline-flex; align-items:center; gap:8px; height: 28px; padding: 0 12px; color: var(--on-surface-variant); font-size: 12px; max-width: 460px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.status-pill .dot{ width:6px; height:6px; border-radius:50%; background: var(--on-surface-variant); opacity:.6; flex-shrink:0; }
+.status-pill{ display:inline-flex; align-items:center; gap:8px; height: 28px; padding: 0 12px; color: var(--on-surface-variant); font-size: 12px; line-height: 16px; letter-spacing: .02em; max-width: 460px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; transition: color var(--dur-short-4) var(--easing-std); }
+.status-pill .dot{ width:6px; height:6px; border-radius:50%; background: var(--on-surface-variant); opacity:.55; flex-shrink:0; transition: background var(--dur-short-4) var(--easing-std), opacity var(--dur-short-4) var(--easing-std); }
 .status-pill.err{ color: var(--err-40); } .status-pill.err .dot{ background: var(--err-40); opacity:1; }
 .status-pill.warn{ color:#8a5a00; } .status-pill.warn .dot{ background:#e08600; opacity:1; }
-.icon-btn{ width: 40px; height: 40px; border-radius: var(--r-full); display:inline-grid; place-items:center; color: var(--on-surface-variant); transition: background .15s var(--easing-std); position: relative; }
-.icon-btn:hover{ background: rgba(0,0,0,.06); color: var(--on-surface); }
-.icon-btn:active{ background: rgba(0,0,0,.10); }
+/* Icon button: M3 state layer は擬似要素で表現 (色追随しやすい) */
+.icon-btn{ width: 40px; height: 40px; border-radius: var(--r-full); display:inline-grid; place-items:center; color: var(--on-surface-variant); position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std); }
+.icon-btn::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.icon-btn:hover{ color: var(--on-surface); }
+.icon-btn:hover::before{ opacity: .08; }
+.icon-btn:active::before{ opacity: .12; transition-duration: 0ms; }
+.icon-btn:disabled{ color: var(--on-surface-variant); opacity: .38; cursor: default; }
+.icon-btn:disabled::before{ opacity: 0 !important; }
 .icon-btn svg{ width:22px; height:22px; }
-.btn-tonal{ display:inline-flex; align-items:center; gap:8px; height: 40px; padding: 0 16px 0 14px; border-radius: var(--r-full); background: var(--p-90); color: var(--p-10); font-weight:500; font-size:14px; transition: background .15s, box-shadow .15s; }
-.btn-tonal:hover{ background: #c4d6ff; box-shadow: var(--elev-1); }
+
+/* Tonal button (secondary action) */
+.btn-tonal{ display:inline-flex; align-items:center; gap:8px; height: 40px; padding: 0 16px 0 14px; border-radius: var(--r-full); background: var(--primary-container); color: var(--on-primary-container); font-weight:500; font-size:14px; position: relative; isolation: isolate; transition: box-shadow var(--dur-short-3) var(--easing-std); }
+.btn-tonal::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-primary-container); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.btn-tonal:hover{ box-shadow: var(--elev-1); }
+.btn-tonal:hover::before{ opacity: .08; }
+.btn-tonal:active::before{ opacity: .12; transition-duration: 0ms; }
 .btn-tonal svg{ width:18px; height:18px; }
-.btn-filled{ display:inline-flex; align-items:center; gap:10px; height: 44px; padding: 0 22px 0 18px; border-radius: var(--r-full); background: var(--primary); color: var(--on-primary); font-weight:500; font-size:15px; box-shadow: var(--elev-1); transition: box-shadow .15s, background .15s; }
-.btn-filled:hover{ background: #0b4dba; box-shadow: var(--elev-3); }
+
+/* Filled button (primary action) */
+.btn-filled{ display:inline-flex; align-items:center; gap:10px; height: 44px; padding: 0 22px 0 18px; border-radius: var(--r-full); background: var(--primary); color: var(--on-primary); font-weight:500; font-size:15px; box-shadow: var(--elev-1); position: relative; isolation: isolate; transition: box-shadow var(--dur-short-3) var(--easing-std); }
+.btn-filled::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-primary); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.btn-filled:hover{ box-shadow: var(--elev-2); }
+.btn-filled:hover::before{ opacity: .08; }
+.btn-filled:active{ box-shadow: var(--elev-1); }
+.btn-filled:active::before{ opacity: .12; transition-duration: 0ms; }
 .btn-filled svg{ width:20px; height:20px; }
-.btn-outlined{ display:inline-flex; align-items:center; gap:8px; height: 36px; padding: 0 16px; border-radius: var(--r-full); border: 1px solid var(--outline); color: var(--on-surface-variant); font-weight:500; font-size:13px; background: transparent; }
-.btn-outlined:hover{ background: rgba(0,0,0,.04); color: var(--on-surface); }
+
+/* Outlined button */
+.btn-outlined{ display:inline-flex; align-items:center; gap:8px; height: 36px; padding: 0 16px; border-radius: var(--r-full); border: 1px solid var(--outline); color: var(--primary); font-weight:500; font-size:13px; background: transparent; position: relative; isolation: isolate; transition: border-color var(--dur-short-3) var(--easing-std); }
+.btn-outlined::before{ content:""; position: absolute; inset: -1px; border-radius: inherit; background: var(--primary); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.btn-outlined:hover::before{ opacity: .08; }
+.btn-outlined:active::before{ opacity: .12; transition-duration: 0ms; }
+
 .divider-v{ width:1px; height: 28px; background: var(--outline-variant); margin: 0 4px; }
 
 /* --- 2. Formatting toolbar (floating, contextual) --- */
-.fmtbar{ position: fixed; display:flex; align-items:center; gap: 6px; padding: 6px 10px; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: var(--r-full); box-shadow: var(--elev-3); z-index: 6; overflow: visible; transform-origin: 50% 100%; transform: translateY(8px) scale(.96); opacity: 0; pointer-events: none; transition: transform .18s var(--easing-emph), opacity .14s var(--easing-std); white-space: nowrap; top:0; left:0; }
+.fmtbar{ position: fixed; display:flex; align-items:center; gap: 6px; padding: 6px 10px; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: var(--r-full); box-shadow: var(--elev-3); z-index: 6; overflow: visible; transform-origin: 50% 100%; transform: translateY(8px) scale(.96); opacity: 0; pointer-events: none; transition: transform var(--dur-med-1) var(--easing-emph-decel), opacity var(--dur-short-3) var(--easing-std); white-space: nowrap; top:0; left:0; }
+.fmtbar.is-below{ transform-origin: 50% 0%; transform: translateY(-8px) scale(.96); }
 .fmtbar.is-visible{ opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
 .fmtbar .divider-v{ height: 22px; margin: 0 2px; }
 .fmtbar .group{ display:flex; align-items:center; gap: 2px; }
-.fmtbar .group-label{ font-size: 11px; color: var(--on-surface-variant); padding: 0 4px 0 6px; }
+.fmtbar .group-label{ font-size: 11px; color: var(--on-surface-variant); padding: 0 4px 0 6px; font-weight: 500; letter-spacing: .02em; }
 
 /* Empty-state hint on the stage */
-.select-hint{ position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: inline-flex; align-items:center; gap: 8px; background: var(--surface-container-high); color: var(--on-surface-variant); font-size: 12px; padding: 8px 14px; border-radius: var(--r-full); box-shadow: var(--elev-1); pointer-events: none; transition: opacity .2s; }
+.select-hint{ position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: inline-flex; align-items:center; gap: 8px; background: var(--surface-container-high); color: var(--on-surface-variant); font-size: 12px; line-height: 16px; padding: 8px 14px; border-radius: var(--r-full); box-shadow: var(--elev-1); pointer-events: none; transition: opacity var(--dur-short-4) var(--easing-std); }
 .select-hint svg{ width: 14px; height: 14px; }
 .stage.has-selection .select-hint{ opacity: 0; }
 
-.tgl{ height: 34px; min-width: 34px; padding: 0 8px; border-radius: var(--r-full); display:inline-flex; align-items:center; justify-content:center; gap:6px; color: var(--on-surface-variant); transition: background .15s, color .15s; font-weight: 500; font-size: 13px; }
-.tgl:hover{ background: rgba(0,0,0,.05); color: var(--on-surface); }
-.tgl.is-on{ background: var(--p-90); color: var(--p-10); }
-.tgl.is-on:hover{ background: #c4d6ff; }
-.tgl:disabled{ opacity:.4; cursor:default; } .tgl:disabled:hover{ background:none; }
+/* Toggle (B / role chip など): state layer は擬似要素で */
+.tgl{ height: 34px; min-width: 34px; padding: 0 8px; border-radius: var(--r-full); display:inline-flex; align-items:center; justify-content:center; gap:6px; color: var(--on-surface-variant); font-weight: 500; font-size: 13px; position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std), background-color var(--dur-short-3) var(--easing-std); }
+.tgl::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.tgl:hover{ color: var(--on-surface); }
+.tgl:hover::before{ opacity: .08; }
+.tgl:active::before{ opacity: .12; transition-duration: 0ms; }
+.tgl.is-on{ background: var(--primary-container); color: var(--on-primary-container); }
+.tgl.is-on::before{ background: var(--on-primary-container); }
+.tgl:disabled{ opacity:.38; cursor:default; } .tgl:disabled::before{ opacity: 0 !important; }
 .tgl svg{ width: 20px; height: 20px; }
 .i-bold{ font-weight: 800; font-size: 16px; line-height: 1; }
 
+/* Segmented control (M3 segmented buttons) */
 .seg{ display:inline-flex; border: 1px solid var(--outline); border-radius: var(--r-full); background: var(--surface-container-low); height: 32px; overflow: hidden; }
-.seg .seg-btn{ min-width: 36px; height: 100%; padding: 0 8px; display:inline-flex; align-items:center; justify-content:center; color: var(--on-surface-variant); border-right: 1px solid var(--outline); transition: background .15s; font-size: 11px; }
+.seg .seg-btn{ min-width: 36px; height: 100%; padding: 0 8px; display:inline-flex; align-items:center; justify-content:center; color: var(--on-surface-variant); border-right: 1px solid var(--outline); font-size: 11px; position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std), background-color var(--dur-short-3) var(--easing-std); }
+.seg .seg-btn::before{ content:""; position: absolute; inset: 0; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
 .seg .seg-btn:last-child{ border-right: 0; }
-.seg .seg-btn:hover{ background: rgba(0,0,0,.05); }
+.seg .seg-btn:hover{ color: var(--on-surface); }
+.seg .seg-btn:hover::before{ opacity: .08; }
+.seg .seg-btn:active::before{ opacity: .12; transition-duration: 0ms; }
 .seg .seg-btn.is-on{ background: var(--s-90); color: var(--p-10); }
-.seg .seg-btn:disabled{ opacity:.4; cursor:default; }
+.seg .seg-btn.is-on::before{ background: var(--p-10); }
+.seg .seg-btn:disabled{ opacity:.38; cursor:default; }
+.seg .seg-btn:disabled::before{ opacity: 0 !important; }
 .seg .seg-btn svg{ width: 16px; height: 16px; }
 
-.stepper{ display:inline-flex; align-items:center; height: 32px; border:1px solid var(--outline); border-radius: var(--r-full); padding: 0 4px; background: var(--surface-container-low); }
-.stepper button{ width: 26px; height: 26px; border-radius:50%; color: var(--on-surface-variant); }
-.stepper button:hover{ background: rgba(0,0,0,.06); }
+/* Stepper */
+.stepper{ display:inline-flex; align-items:center; height: 32px; border:1px solid var(--outline); border-radius: var(--r-full); padding: 0 4px; background: var(--surface-container-low); gap: 2px; }
+.stepper button{ width: 26px; height: 26px; border-radius:50%; color: var(--on-surface-variant); position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std); }
+.stepper button::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.stepper button:hover{ color: var(--on-surface); }
+.stepper button:hover::before{ opacity: .08; }
+.stepper button:active::before{ opacity: .12; transition-duration: 0ms; }
 .stepper .val{ min-width: 28px; text-align:center; font-variant-numeric: tabular-nums; font-weight:500; color: var(--on-surface); }
 .stepper .unit{ font-size:11px; color: var(--on-surface-variant); margin-left:2px; }
 
-.color-trigger{ display:inline-flex; align-items:center; gap:6px; height: 32px; padding: 0 8px; border-radius: var(--r-full); border:1px solid var(--outline); background: var(--surface-container-low); color: var(--on-surface-variant); font-size:13px; font-weight:500; }
-.color-trigger:hover{ background: rgba(0,0,0,.04); }
+/* Color trigger */
+.color-trigger{ display:inline-flex; align-items:center; gap:6px; height: 32px; padding: 0 8px; border-radius: var(--r-full); border:1px solid var(--outline); background: var(--surface-container-low); color: var(--on-surface-variant); font-size:13px; font-weight:500; position: relative; isolation: isolate; transition: border-color var(--dur-short-3) var(--easing-std), color var(--dur-short-3) var(--easing-std); }
+.color-trigger::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.color-trigger:hover{ color: var(--on-surface); }
+.color-trigger:hover::before{ opacity: .08; }
+.color-trigger:active::before{ opacity: .12; transition-duration: 0ms; }
+.color-trigger:disabled{ opacity: .38; cursor: default; }
+.color-trigger:disabled::before{ opacity: 0 !important; }
 .color-trigger > svg{ width: 18px; height: 18px; color: var(--on-surface-variant); }
 .color-trigger .chip{ width: 16px; height: 16px; border-radius: 4px; background: #1b1b1f; border: 1px solid rgba(0,0,0,.15); }
 .color-trigger svg.caret{ width: 16px; height: 16px; color: var(--on-surface-variant); }
-.color-pop{ position: absolute; top: 100%; margin-top: 6px; left: 0; background: var(--surface-container-low); border-radius: var(--r-md); padding: 12px; box-shadow: var(--elev-3); border: 1px solid var(--outline-variant); z-index: 8; display: none; width: 240px; }
-.color-pop.is-open{ display:block; }
-.color-pop h4{ margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--on-surface-variant); font-weight: 500; }
-.color-pop .row{ display:grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 12px; }
+/* Color popover (M3 dialog-like) */
+.color-pop{ position: absolute; top: 100%; margin-top: 8px; left: 0; background: var(--surface-container-low); border-radius: var(--r-md); padding: 14px; box-shadow: var(--elev-3); border: 1px solid var(--outline-variant); z-index: 8; display: none; width: 248px; transform-origin: 50% 0%; }
+.color-pop.is-open{ display:block; animation: m3-pop var(--dur-short-4) var(--easing-emph-decel); }
+@keyframes m3-pop{ from{ opacity: 0; transform: scaleY(.94) translateY(-4px); } to{ opacity: 1; transform: scaleY(1) translateY(0); } }
+.color-pop h4{ margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--on-surface-variant); font-weight: 600; }
+.color-pop .row{ display:grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px; }
 .color-pop .row:last-child{ margin-bottom: 0; }
-.sw{ width: 100%; aspect-ratio: 1/1; border-radius: 8px; cursor: pointer; border: 1px solid rgba(0,0,0,.08); transition: transform .12s, box-shadow .12s; }
+.sw{ width: 100%; aspect-ratio: 1/1; border-radius: 8px; cursor: pointer; border: 1px solid rgba(0,0,0,.08); position: relative; transition: transform var(--dur-short-2) var(--easing-std), box-shadow var(--dur-short-2) var(--easing-std); }
 .sw:hover{ transform: scale(1.08); box-shadow: var(--elev-1); }
 .sw.is-on{ outline: 2px solid var(--primary); outline-offset: 2px; }
-.color-pop .custom{ display:flex; gap:8px; align-items:center; margin-top: 10px; padding-top:10px; border-top:1px solid var(--outline-variant); }
-.color-pop .custom input[type="color"]{ width: 30px; height: 30px; border:0; padding:0; background:none; border-radius: 8px; cursor:pointer; }
+.sw.is-on::after{ content:""; position: absolute; inset: 0; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1.2'><path d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/></svg>") center/60% no-repeat; opacity: .9; }
+.color-pop .custom{ display:flex; gap:10px; align-items:center; margin-top: 12px; padding-top:12px; border-top:1px solid var(--outline-variant); }
+.color-pop .custom input[type="color"]{ width: 32px; height: 32px; border:0; padding:0; background:none; border-radius: 8px; cursor:pointer; }
 .color-pop .custom label{ font-size: 12px; color: var(--on-surface-variant); }
-.color-pop .custom button{ margin-left:auto; font-size:12px; color: var(--primary); font-weight:500; padding:4px 8px; border-radius:var(--r-sm); }
-.color-pop .custom button:hover{ background: rgba(11,87,208,.08); }
+.color-pop .custom button{ margin-left:auto; font-size:12px; color: var(--primary); font-weight:500; padding:6px 10px; border-radius:var(--r-full); position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std); }
+.color-pop .custom button::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--primary); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.color-pop .custom button:hover::before{ opacity: .08; }
+.color-pop .custom button:active::before{ opacity: .12; transition-duration: 0ms; }
 
-.field{ position: relative; height: 32px; border:1px solid var(--outline); border-radius: var(--r-sm); background: var(--surface-container-lowest); padding: 0 10px; display:inline-flex; align-items:center; gap:6px; }
-.field:hover{ border-color: var(--on-surface-variant); }
+/* Outlined text field (M3) */
+.field{ position: relative; height: 32px; border:1px solid var(--outline); border-radius: var(--r-sm); background: var(--surface-container-lowest); padding: 0 10px; display:inline-flex; align-items:center; gap:6px; transition: border-color var(--dur-short-3) var(--easing-std), box-shadow var(--dur-short-3) var(--easing-std); }
+.field:hover{ border-color: var(--on-surface); }
 .field:focus-within{ border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
-.field select{ appearance: none; background: transparent; border: 0; outline: none; height: 100%; padding-right: 22px; font-size: 12px; min-width: 110px; }
-.field .caret{ position:absolute; right:8px; top:50%; transform:translateY(-50%); width: 16px; height: 16px; color: var(--on-surface-variant); pointer-events:none; }
+.field select{ appearance: none; background: transparent; border: 0; outline: none; height: 100%; padding-right: 22px; font-size: 12px; min-width: 110px; cursor: pointer; }
+.field .caret{ position:absolute; right:8px; top:50%; transform:translateY(-50%); width: 16px; height: 16px; color: var(--on-surface-variant); pointer-events:none; transition: transform var(--dur-short-3) var(--easing-std); }
+.field:focus-within .caret{ transform: translateY(-50%) rotate(180deg); color: var(--primary); }
 
-.chip{ display:inline-flex; align-items:center; gap:6px; height: 28px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--outline); background: var(--surface-container-lowest); font-size: 11.5px; color: var(--on-surface-variant); font-weight: 500; }
-.chip.is-on{ background: var(--p-90); color: var(--p-10); border-color: transparent; }
+/* Chip (assistive / suggestion) */
+.chip{ display:inline-flex; align-items:center; gap:6px; height: 28px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--outline); background: var(--surface-container-lowest); font-size: 11.5px; color: var(--on-surface-variant); font-weight: 500; position: relative; isolation: isolate; transition: color var(--dur-short-3) var(--easing-std), background-color var(--dur-short-3) var(--easing-std), border-color var(--dur-short-3) var(--easing-std); }
+.chip::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.chip:hover{ color: var(--on-surface); }
+.chip:hover::before{ opacity: .08; }
+.chip:active::before{ opacity: .12; transition-duration: 0ms; }
+.chip.is-on{ background: var(--primary-container); color: var(--on-primary-container); border-color: transparent; }
+.chip.is-on::before{ background: var(--on-primary-container); }
 .chip svg{ width:16px; height:16px; }
 
 /* --- 3. Main canvas layout --- */
 .main{ display: grid; grid-template-columns: minmax(360px, 28%) minmax(0, 1fr); min-height: 0; background: var(--surface); }
 .pane-edit{ display:flex; flex-direction: column; border-right: 1px solid var(--outline-variant); background: var(--surface-container-lowest); }
-.pane-head{ display:flex; align-items:center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--outline-variant); color: var(--on-surface-variant); font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.pane-head{ display:flex; align-items:center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--outline-variant); color: var(--on-surface-variant); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .pane-head svg{ width:16px; height:16px; }
 .pane-head .spacer{ flex:1; }
-.pane-head .lines{ font-variant-numeric: tabular-nums; color: var(--n-50); font-weight: 400; text-transform: none; letter-spacing: 0; }
-.editor-wrap{ position: relative; flex: 1; min-height: 0; background: var(--n-100); }
-.md-highlight, #md{ position:absolute; inset:0; margin:0; width:100%; height:100%; box-sizing:border-box; padding: 18px 18px 24px; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; tab-size: 2; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; scrollbar-gutter: stable; }
+.pane-head .lines{ font-variant-numeric: tabular-nums; color: var(--on-surface-variant); font-weight: 400; text-transform: none; letter-spacing: .02em; font-size: 12px; opacity: .85; }
+.editor-wrap{ position: relative; flex: 1; min-height: 0; background: var(--surface-container-lowest); }
+.md-highlight, #md{ position:absolute; inset:0; margin:0; width:100%; height:100%; box-sizing:border-box; padding: 20px 20px 24px; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; tab-size: 2; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; scrollbar-gutter: stable; letter-spacing: .005em; }
 .md-highlight{ color: transparent; overflow: hidden; pointer-events: none; }
-.md-highlight mark{ background: #d6e2ff; color: transparent; border-radius: 2px; }
-#md{ border: 0; outline: none; resize: none; color: var(--n-10); background: transparent; overflow-y: auto; }
+.md-highlight mark{ background: var(--p-95); color: transparent; border-radius: 3px; box-shadow: inset 2px 0 0 var(--p-40); }
+#md{ border: 0; outline: none; resize: none; color: var(--on-surface); background: transparent; overflow-y: auto; caret-color: var(--primary); }
+/* Editor scrollbar (M3-ish, thin) */
+#md::-webkit-scrollbar{ width: 10px; }
+#md::-webkit-scrollbar-track{ background: transparent; }
+#md::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 999px; border: 3px solid var(--surface-container-lowest); }
+#md::-webkit-scrollbar-thumb:hover{ background: var(--n-70); }
 
 .pane-prev{ display:grid; grid-template-rows: 1fr 168px; grid-template-columns: minmax(0, 1fr); min-height: 0; min-width: 0; background: var(--surface); }
 .stage{ position: relative; display:flex; align-items:center; justify-content:center; padding: 28px 40px 20px; min-height: 0; min-width: 0; background: var(--surface); }
 #slides{ min-width: 0; max-width: 100%; }
-.stage .badge{ position: absolute; top: 16px; left: 28px; font-size: 12px; color: var(--on-surface-variant); font-weight: 400; font-variant-numeric: tabular-nums; }
-.stage .badge .num-pill{ color: var(--on-surface); font-weight: 500; }
+.stage .badge{ position: absolute; top: 16px; left: 28px; font-size: 12px; line-height: 16px; color: var(--on-surface-variant); font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.stage .badge .num-pill{ color: var(--on-surface); font-weight: 600; }
 .stage .stage-tools{ position: absolute; top: 14px; right: 24px; display:flex; gap: 4px; }
-.stage .hint{ position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--on-surface-variant); background: var(--surface-container-high); padding: 4px 12px; border-radius: var(--r-full); opacity: 0; transition: opacity .2s; pointer-events: none; white-space:nowrap; }
-.stage.editing .hint{ opacity: 1; }
-.slide-card{ aspect-ratio: 16/9; width: min(100%, calc((100vh - 64px - 28px - 168px - 60px) * 16/9)); background: #fff; border-radius: var(--r-lg); box-shadow: var(--elev-3); position: relative; overflow: hidden; outline: 2px solid transparent; transition: outline-color .2s; }
-.slide-card.is-active{ outline-color: var(--p-40); }
+.stage .hint{ position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%) translateY(4px); font-size: 11px; line-height: 16px; color: var(--on-surface-variant); background: var(--surface-container-high); padding: 6px 14px; border-radius: var(--r-full); opacity: 0; transition: opacity var(--dur-short-4) var(--easing-std), transform var(--dur-short-4) var(--easing-std); pointer-events: none; white-space:nowrap; box-shadow: var(--elev-1); }
+.stage.editing .hint{ opacity: 1; transform: translateX(-50%) translateY(0); }
+.slide-card{ aspect-ratio: 16/9; width: min(100%, calc((100vh - 64px - 28px - 168px - 60px) * 16/9)); background: #fff; border-radius: var(--r-lg); box-shadow: var(--elev-2); position: relative; overflow: hidden; outline: 2px solid transparent; transition: outline-color var(--dur-short-4) var(--easing-std), box-shadow var(--dur-short-4) var(--easing-std); }
+.slide-card.is-active{ outline-color: var(--p-40); box-shadow: var(--elev-3); }
 .slide-card svg{ width: 100%; height: 100%; display:block; }
 .slide-card.overflow{ outline-color: var(--err-40); }
 #slides{ width:100%; display:flex; justify-content:center; align-items:center; }
 .slide .num{ display:none; }
 
-.filmstrip{ display:flex; align-items:center; gap: 4px; padding: 12px 14px 16px; background: var(--surface-container-low); border-top: 1px solid var(--outline-variant); position: relative; }
-.filmstrip .nav{ width: 36px; height: 36px; border-radius:50%; display:grid; place-items:center; background: var(--surface-container-highest); color: var(--on-surface-variant); box-shadow: var(--elev-1); flex-shrink:0; }
-.filmstrip .nav:hover{ background: var(--p-90); color: var(--p-10); }
+.filmstrip{ display:flex; align-items:center; gap: 8px; padding: 12px 14px 16px; background: var(--surface-container-low); border-top: 1px solid var(--outline-variant); position: relative; }
+.filmstrip .nav{ width: 36px; height: 36px; border-radius:50%; display:grid; place-items:center; background: var(--surface-container-highest); color: var(--on-surface-variant); box-shadow: var(--elev-1); flex-shrink:0; position: relative; isolation: isolate; transition: background-color var(--dur-short-3) var(--easing-std), color var(--dur-short-3) var(--easing-std), box-shadow var(--dur-short-3) var(--easing-std); }
+.filmstrip .nav::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.filmstrip .nav:hover{ color: var(--on-surface); box-shadow: var(--elev-2); }
+.filmstrip .nav:hover::before{ opacity: .08; }
+.filmstrip .nav:active::before{ opacity: .12; transition-duration: 0ms; }
 .filmstrip .nav svg{ width:18px; height:18px; }
 .thumbs{ flex: 1; min-width: 0; display:flex; align-items:center; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; padding: 6px 6px 10px; }
 .thumbs::-webkit-scrollbar{ height: 10px; }
 .thumbs::-webkit-scrollbar-track{ background: transparent; }
 .thumbs::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 999px; border: 3px solid var(--surface-container-low); }
 .thumbs::-webkit-scrollbar-thumb:hover{ background: var(--n-70); }
-.thumb{ flex: 0 0 auto; width: 176px; aspect-ratio: 16/9; background: #fff; border: 1px solid var(--outline-variant); border-radius: var(--r-sm); box-shadow: var(--elev-1); cursor: pointer; position: relative; overflow: hidden; transition: box-shadow .15s, border-color .15s; }
+.thumb{ flex: 0 0 auto; width: 176px; aspect-ratio: 16/9; background: #fff; border: 1px solid var(--outline-variant); border-radius: var(--r-sm); box-shadow: var(--elev-1); cursor: pointer; position: relative; overflow: hidden; transition: box-shadow var(--dur-short-3) var(--easing-std), border-color var(--dur-short-3) var(--easing-std), transform var(--dur-short-4) var(--easing-emph-decel); }
+.thumb::after{ content:""; position: absolute; inset: 0; background: var(--on-surface); opacity: 0; pointer-events: none; transition: opacity var(--dur-short-3) var(--easing-std); }
 .thumb:hover{ box-shadow: var(--elev-2); border-color: var(--outline); }
-.thumb.is-active{ border-color: var(--p-40); box-shadow: inset 0 0 0 2px var(--p-40), var(--elev-1); }
-.thumb-num{ position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; display:grid; place-items:center; font-size: 11px; font-weight: 500; z-index:1; }
+.thumb:hover::after{ opacity: .04; }
+.thumb:active::after{ opacity: .08; transition-duration: 0ms; }
+.thumb.is-active{ border-color: var(--p-40); box-shadow: 0 0 0 2px var(--p-40), var(--elev-1); }
+.thumb-num{ position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; display:grid; place-items:center; font-size: 11px; font-weight: 600; z-index:1; transition: background var(--dur-short-3) var(--easing-std); letter-spacing: 0; }
 .thumb.is-active .thumb-num{ background: var(--p-40); }
 .thumb svg{ width:100%; height:100%; display:block; }
 
 /* --- 4. Bottom status bar --- */
-.statusbar{ display:flex; align-items:center; gap: 16px; padding: 0 16px; background: var(--surface-container); border-top: 1px solid var(--outline-variant); font-size: 11.5px; color: var(--on-surface-variant); }
+.statusbar{ display:flex; align-items:center; gap: 16px; padding: 0 16px; background: var(--surface-container); border-top: 1px solid var(--outline-variant); font-size: 11.5px; line-height: 16px; color: var(--on-surface-variant); letter-spacing: .02em; }
 .statusbar .grow{ flex: 1; }
-.statusbar .sb-item{ display:inline-flex; align-items:center; gap:6px; }
+.statusbar .sb-item{ display:inline-flex; align-items:center; gap:6px; font-variant-numeric: tabular-nums; }
 
-/* --- Settings side sheet --- */
-.scrim{ position: fixed; inset: 0; background: rgba(0,0,0,.32); opacity: 0; pointer-events: none; transition: opacity .25s var(--easing-std); z-index: 9; }
+/* --- Settings side sheet (M3 modal side sheet) --- */
+.scrim{ position: fixed; inset: 0; background: rgba(0,0,0,.32); opacity: 0; pointer-events: none; transition: opacity var(--dur-med-1) var(--easing-std); z-index: 9; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 .scrim.is-open{ opacity: 1; pointer-events: auto; }
-.sheet{ position: fixed; top: 0; right: 0; height: 100%; width: 460px; background: var(--surface-container-low); box-shadow: var(--elev-5); transform: translateX(110%); transition: transform .35s var(--easing-emph); z-index: 10; display:flex; flex-direction: column; border-left: 1px solid var(--outline-variant); }
+.sheet{ position: fixed; top: 0; right: 0; height: 100%; width: 460px; background: var(--surface-container-low); box-shadow: var(--elev-5); transform: translateX(110%); transition: transform var(--dur-med-3) var(--easing-emph); z-index: 10; display:flex; flex-direction: column; border-left: 1px solid var(--outline-variant); }
 .sheet.is-open{ transform: translateX(0); }
-.sheet-head{ display:flex; align-items:center; gap: 10px; padding: 16px 14px 16px 20px; border-bottom: 1px solid var(--outline-variant); }
-.sheet-head h2{ margin: 0; font-size: 20px; font-weight: 500; letter-spacing:-.01em; flex:1; color: var(--n-10); }
+.sheet-head{ display:flex; align-items:center; gap: 12px; padding: 16px 14px 16px 24px; border-bottom: 1px solid var(--outline-variant); background: var(--surface-container-low); position: sticky; top: 0; z-index: 1; }
+.sheet-head h2{ margin: 0; font-size: 22px; line-height: 28px; font-weight: 500; letter-spacing:-.005em; flex:1; color: var(--on-surface); }
 .sheet-body{ flex: 1; overflow-y: auto; padding: 8px 0 32px; }
+.sheet-body::-webkit-scrollbar{ width: 10px; }
+.sheet-body::-webkit-scrollbar-track{ background: transparent; }
+.sheet-body::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 999px; border: 3px solid var(--surface-container-low); }
+.sheet-body::-webkit-scrollbar-thumb:hover{ background: var(--n-70); }
 .sect{ padding: 20px 24px; border-bottom: 1px solid var(--outline-variant); }
 .sect:last-child{ border-bottom: 0; }
-.sect h3{ margin: 0 0 14px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--n-30); }
-.sect p{ margin: 0 0 12px; font-size: 13px; color: var(--n-30); line-height: 1.6; }
-.sheet-body .row{ display:flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 0; }
-.sheet-body .row .label{ flex: none; font-size: 15px; font-weight: 500; color: var(--n-10); }
-.sheet-body .row .desc{ font-size: 13px; color: var(--n-30); margin-top: 4px; line-height: 1.55; }
+.sect h3{ margin: 0 0 14px; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--on-surface-variant); }
+.sect p{ margin: 0 0 12px; font-size: 13px; line-height: 20px; color: var(--on-surface-variant); }
+.sheet-body .row{ display:flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 8px 0; }
+.sheet-body .row .label{ flex: none; font-size: 15px; line-height: 20px; font-weight: 500; color: var(--on-surface); letter-spacing: .005em; }
+.sheet-body .row .desc{ font-size: 13px; line-height: 18px; color: var(--on-surface-variant); margin-top: 4px; }
 .sheet-body .row > .switch, .sheet-body .row > .btn-danger{ align-self: flex-end; }
 
-/* 設定パネルのフォント選択: ポップアップでなくインライン ラジオリスト */
+/* Radio list (M3 inline radio group with surface state) */
 .radiolist{ display:flex; flex-direction: column; gap: 2px; border: 1px solid var(--outline-variant); border-radius: var(--r-md); padding: 4px; background: var(--surface-container-lowest); max-height: 360px; overflow-y: auto; }
-.radio-item{ display:flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: var(--r-sm); cursor: pointer; transition: background .12s; position: relative; }
-.radio-item:hover{ background: rgba(0,0,0,.04); }
-.radio-item.is-on{ background: var(--p-95); }
-.radio-dot{ width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--n-40); flex-shrink: 0; position: relative; box-sizing: border-box; transition: border-color .12s; }
-.radio-item.is-on .radio-dot{ border-color: var(--p-40); }
-.radio-item.is-on .radio-dot::after{ content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--p-40); }
-.radio-label{ font-size: 15px; color: var(--n-10); flex: 1; line-height: 1.35; }
-.radio-sub{ display: block; font-size: 11.5px; color: var(--on-surface-variant); font-family: var(--font-sans); font-weight: 400; margin-top: 2px; }
-.switch{ position: relative; width: 52px; height: 32px; border-radius: 16px; background: var(--surface-container-highest); border: 2px solid var(--n-40); cursor: pointer; transition: background .2s, border-color .2s; flex-shrink: 0; }
-.switch::after{ content:""; position: absolute; top: 50%; left: 5px; transform: translate(0, -50%); width: 16px; height: 16px; border-radius: 50%; background: var(--n-40); transition: transform .2s var(--easing-emph), background .2s, width .2s, height .2s; }
-.switch.is-on{ background: var(--p-40); border-color: var(--p-40); }
-.switch.is-on::after{ background: #fff; width: 22px; height: 22px; transform: translate(22px, -50%); }
-.btn-danger{ display:inline-flex; align-items:center; gap:8px; height: 40px; padding: 0 18px; border-radius: var(--r-full); background: var(--err-90); color: var(--err-40); font-weight: 500; font-size: 14px; white-space: nowrap; flex-shrink: 0; }
-.btn-danger:hover{ background: #ffc4be; }
+.radiolist::-webkit-scrollbar{ width: 8px; }
+.radiolist::-webkit-scrollbar-thumb{ background: var(--n-80); border-radius: 999px; border: 2px solid var(--surface-container-lowest); }
+.radio-item{ display:flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: var(--r-sm); cursor: pointer; position: relative; isolation: isolate; transition: background-color var(--dur-short-3) var(--easing-std); }
+.radio-item::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.radio-item:hover::before{ opacity: .06; }
+.radio-item:active::before{ opacity: .10; transition-duration: 0ms; }
+.radio-item.is-on{ background: var(--primary-container); }
+.radio-item.is-on::before{ background: var(--on-primary-container); }
+.radio-item.is-on:hover::before{ opacity: .08; }
+.radio-dot{ width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--on-surface-variant); flex-shrink: 0; position: relative; box-sizing: border-box; transition: border-color var(--dur-short-3) var(--easing-std); }
+.radio-item.is-on .radio-dot{ border-color: var(--primary); }
+.radio-item.is-on .radio-dot::after{ content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--primary); animation: m3-radio-fill var(--dur-short-3) var(--easing-emph-decel); }
+@keyframes m3-radio-fill{ from{ transform: scale(.2); opacity: 0; } to{ transform: scale(1); opacity: 1; } }
+.radio-label{ font-size: 15px; line-height: 22px; color: var(--on-surface); flex: 1; }
+.radio-item.is-on .radio-label{ color: var(--on-primary-container); }
+.radio-sub{ display: block; font-size: 11.5px; line-height: 16px; color: var(--on-surface-variant); font-family: var(--font-sans); font-weight: 400; margin-top: 2px; letter-spacing: .02em; }
+.radio-item.is-on .radio-sub{ color: var(--on-primary-container); opacity: .76; }
 
-/* --- Preview slide internals (JS contract) --- */
+/* Switch (M3 spec: track + thumb size animates on toggle) */
+.switch{ position: relative; width: 52px; height: 32px; border-radius: 16px; background: var(--surface-container-highest); border: 2px solid var(--outline); cursor: pointer; transition: background-color var(--dur-short-4) var(--easing-std), border-color var(--dur-short-4) var(--easing-std); flex-shrink: 0; }
+.switch::after{ content:""; position: absolute; top: 50%; left: 5px; transform: translate(0, -50%); width: 16px; height: 16px; border-radius: 50%; background: var(--outline); transition: transform var(--dur-short-4) var(--easing-emph), background-color var(--dur-short-4) var(--easing-std), width var(--dur-short-4) var(--easing-emph), height var(--dur-short-4) var(--easing-emph); }
+.switch:hover::after{ background: var(--on-surface-variant); }
+.switch.is-on{ background: var(--primary); border-color: var(--primary); }
+.switch.is-on::after{ background: var(--on-primary); width: 22px; height: 22px; transform: translate(20px, -50%); }
+.switch:active::after{ width: 26px; height: 26px; }
+.switch.is-on:active::after{ transform: translate(18px, -50%); }
+
+/* Danger button (error tonal) */
+.btn-danger{ display:inline-flex; align-items:center; gap:8px; height: 40px; padding: 0 18px; border-radius: var(--r-full); background: var(--err-90); color: var(--err-40); font-weight: 500; font-size: 14px; line-height: 20px; white-space: nowrap; flex-shrink: 0; position: relative; isolation: isolate; transition: box-shadow var(--dur-short-3) var(--easing-std); }
+.btn-danger::before{ content:""; position: absolute; inset: 0; border-radius: inherit; background: var(--err-40); opacity: 0; transition: opacity var(--dur-short-3) var(--easing-std); pointer-events: none; z-index: -1; }
+.btn-danger:hover{ box-shadow: var(--elev-1); }
+.btn-danger:hover::before{ opacity: .08; }
+.btn-danger:active::before{ opacity: .12; transition-duration: 0ms; }
+
+/* --- Preview slide internals (JS contract) ---
+   selection rect / handle / charmode の色は M3 primary/tertiary に同期。
+   JS が createElementNS で塗り色を直書きしている箇所もあるが、
+   CSS で上書きする (preview.js 側のロジックは変えない方針)。 */
 .bhit{ fill: transparent; cursor: pointer; pointer-events: all; }
 .ehit{ fill: transparent; pointer-events: none; }
-.blk:not(.charmode):hover .bhit{ fill: rgba(11,87,208,.05); }
+.blk:not(.charmode):hover .bhit{ fill: rgba(11,87,208,.06); }
 .blk.charmode .ehit{ pointer-events: all; cursor: move; stroke: #0a8754; stroke-width: 0.8; stroke-dasharray: 2 2; }
-.blk.charmode .ehit:hover{ fill: rgba(10,135,84,.08); }
+.blk.charmode .ehit:hover{ fill: rgba(10,135,84,.10); }
+/* JS が createElementNS で直接 stroke/fill を当てているが、CSS で M3 primary に整える */
+.slide-card svg .sel-rect{ fill: rgba(11,87,208,.06) !important; stroke: var(--p-40) !important; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.slide-card svg .blk.charmode .sel-rect{ stroke: #0a8754 !important; }
+.slide-card svg .handle-rect{ fill: var(--p-40) !important; stroke: #fff !important; stroke-width: 1.5; }
+.slide-card svg .handle-rect:hover{ stroke-width: 2; }
 .legacy-hidden{ display: none !important; }
+
+/* Reduced motion: ユーザー設定を尊重 */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* --- Micro-interactions: M3 press scale (任意の対象に効かせる) ---
+   主要操作は press 時に微縮小して触覚を返す。state layer と組み合わせ。 */
+.btn-filled, .btn-tonal, .btn-outlined, .btn-danger,
+.icon-btn, .tgl, .seg-btn, .filmstrip .nav, .stepper button,
+.color-trigger, .chip{
+  will-change: transform;
+  transition-property: background-color, color, border-color, box-shadow, transform;
+  transition-duration: var(--dur-short-3);
+  transition-timing-function: var(--easing-std);
+}
+.btn-filled:active, .btn-tonal:active, .btn-outlined:active, .btn-danger:active,
+.tgl:active, .color-trigger:active, .chip:active{
+  transform: scale(.98);
+  transition-duration: var(--dur-short-1);
+}
+.icon-btn:active, .seg-btn:active, .filmstrip .nav:active, .stepper button:active{
+  transform: scale(.94);
+  transition-duration: var(--dur-short-1);
+}
+.btn-filled:disabled, .btn-tonal:disabled, .btn-outlined:disabled, .btn-danger:disabled,
+.icon-btn:disabled, .tgl:disabled, .seg-btn:disabled, .color-trigger:disabled{
+  transform: none;
+}
+
+/* サムネのアクティブ切替を slight pop で */
+.thumb.is-active{ transform: scale(1.02); }
+
+/* fmtbar のフィールド select に right padding を増やして caret と被らないように */
+.fmtbar .field select{ padding-right: 26px; }
 </style>
 </head>
 <body>
@@ -258,34 +441,34 @@ select,input,textarea{ font: inherit; color: inherit; }
 <div class="app">
   <!-- APP BAR -->
   <header class="appbar">
-    <a class="brand" href="/" title="トップへ">
-      <div class="brand-mark">m</div>
-      <div class="brand-wm"><em>md</em>-slides</div>
+    <a class="brand" href="/" title="トップへ" aria-label="md-slides トップへ">
+      <div class="brand-mark" aria-hidden="true">m</div>
+      <div class="brand-wm" aria-hidden="true"><em>md</em>-slides</div>
     </a>
     <div class="grow"></div>
-    <button id="undo" class="icon-btn" title="元に戻す (⌘Z)"><svg><use href="#i-undo"/></svg></button>
-    <button id="redo" class="icon-btn" title="やり直し (⌘Y / ⌘⇧Z)"><svg><use href="#i-redo"/></svg></button>
-    <button id="openSettings" class="icon-btn" title="設定"><svg><use href="#i-settings"/></svg></button>
-    <div class="divider-v"></div>
-    <button id="dl" class="btn-filled" title="編集できる .pptx をダウンロード"><svg><use href="#i-download"/></svg>ダウンロード</button>
+    <button id="undo" class="icon-btn" title="元に戻す (⌘Z)" aria-label="元に戻す"><svg aria-hidden="true"><use href="#i-undo"/></svg></button>
+    <button id="redo" class="icon-btn" title="やり直し (⌘Y / ⌘⇧Z)" aria-label="やり直し"><svg aria-hidden="true"><use href="#i-redo"/></svg></button>
+    <button id="openSettings" class="icon-btn" title="設定" aria-label="設定を開く" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
+    <div class="divider-v" aria-hidden="true"></div>
+    <button id="dl" class="btn-filled" title="編集できる .pptx をダウンロード"><svg aria-hidden="true"><use href="#i-download"/></svg>ダウンロード</button>
   </header>
 
   <!-- FORMAT BAR (contextual, floating) -->
   <nav id="fmtbar" class="fmtbar" aria-label="書式ツールバー" role="toolbar">
     <div class="group">
-      <button id="fmtBold" class="tgl" title="太字"><span class="i-bold">B</span></button>
+      <button id="fmtBold" class="tgl" title="太字" aria-label="太字" aria-pressed="false"><span class="i-bold" aria-hidden="true">B</span></button>
       <div style="position:relative">
-        <button id="fmtColorBtn" class="color-trigger" title="文字色" aria-haspopup="true">
-          <svg><use href="#i-text-color"/></svg>
-          <span id="fmtColorChip" class="chip" style="border-radius:4px;width:16px;height:16px;padding:0;background:#1b1b1f;border:1px solid rgba(0,0,0,.15)"></span>
-          <svg class="caret"><use href="#i-caret-down"/></svg>
+        <button id="fmtColorBtn" class="color-trigger" title="文字色" aria-label="文字色" aria-haspopup="dialog" aria-expanded="false">
+          <svg aria-hidden="true"><use href="#i-text-color"/></svg>
+          <span id="fmtColorChip" class="chip" style="border-radius:4px;width:16px;height:16px;padding:0;background:#1b1b1f;border:1px solid rgba(0,0,0,.15)" aria-hidden="true"></span>
+          <svg class="caret" aria-hidden="true"><use href="#i-caret-down"/></svg>
         </button>
-        <input id="fmtColor" type="color" value="#000000" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
-        <div id="fmtColorPop" class="color-pop" role="dialog">
+        <input id="fmtColor" type="color" value="#000000" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" aria-hidden="true" />
+        <div id="fmtColorPop" class="color-pop" role="dialog" aria-label="文字色の選択">
           <h4>標準カラー</h4>
-          <div id="cpStd" class="row"></div>
+          <div id="cpStd" class="row" role="radiogroup" aria-label="標準カラー"></div>
           <h4>グレー階調</h4>
-          <div id="cpGray" class="row"></div>
+          <div id="cpGray" class="row" role="radiogroup" aria-label="グレー階調"></div>
           <div class="custom">
             <label for="customPick">カスタム</label>
             <input id="customPick" type="color" value="#000000" />
@@ -293,10 +476,10 @@ select,input,textarea{ font: inherit; color: inherit; }
           </div>
         </div>
       </div>
-      <div class="stepper" title="文字サイズ">
-        <button id="fmtSizeDown" aria-label="小さく"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M5 11h14v2H5z"/></svg></button>
-        <span id="fmtSizeVal" class="val">–</span><span class="unit">pt</span>
-        <button id="fmtSizeUp" aria-label="大きく"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
+      <div class="stepper" title="文字サイズ" role="group" aria-label="文字サイズ">
+        <button id="fmtSizeDown" aria-label="小さく"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 11h14v2H5z"/></svg></button>
+        <span id="fmtSizeVal" class="val" aria-live="polite">–</span><span class="unit" aria-hidden="true">pt</span>
+        <button id="fmtSizeUp" aria-label="大きく"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       </div>
       <div class="field">
         <select id="fontSel" aria-label="フォント" title="この要素のフォント">
@@ -317,17 +500,17 @@ select,input,textarea{ font: inherit; color: inherit; }
         <svg class="caret"><use href="#i-caret-down"/></svg>
       </div>
     </div>
-    <div class="divider-v"></div>
-    <div class="group"><button id="fmtRole" class="chip is-on" title="ブロックの役割"><svg><use href="#i-style"/></svg><span id="fmtRoleLabel">本文</span></button></div>
-    <div class="divider-v"></div>
+    <div class="divider-v" aria-hidden="true"></div>
+    <div class="group"><button id="fmtRole" class="chip is-on" title="ブロックの役割" aria-label="ブロックの役割"><svg aria-hidden="true"><use href="#i-style"/></svg><span id="fmtRoleLabel">本文</span></button></div>
+    <div class="divider-v" aria-hidden="true"></div>
     <div class="group">
-      <span class="group-label">登場</span>
+      <span class="group-label" aria-hidden="true">登場</span>
       <div class="seg" role="group" aria-label="登場アニメ方向">
-        <button id="animLeft"  class="seg-btn" title="右から登場（左へ進む）"><svg><use href="#i-arrow-left"/></svg></button>
-        <button id="animUp"    class="seg-btn" title="下から登場（上へ進む）"><svg><use href="#i-arrow-up"/></svg></button>
-        <button id="animDown"  class="seg-btn" title="上から登場（下へ進む）"><svg><use href="#i-arrow-down"/></svg></button>
-        <button id="animRight" class="seg-btn" title="左から登場（右へ進む）"><svg><use href="#i-arrow-right"/></svg></button>
-        <button id="animNone"  class="seg-btn" title="登場アニメなし"><svg><use href="#i-none"/></svg></button>
+        <button id="animLeft"  class="seg-btn" title="右から登場（左へ進む）" aria-label="右から登場"><svg aria-hidden="true"><use href="#i-arrow-left"/></svg></button>
+        <button id="animUp"    class="seg-btn" title="下から登場（上へ進む）" aria-label="下から登場"><svg aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+        <button id="animDown"  class="seg-btn" title="上から登場（下へ進む）" aria-label="上から登場"><svg aria-hidden="true"><use href="#i-arrow-down"/></svg></button>
+        <button id="animRight" class="seg-btn" title="左から登場（右へ進む）" aria-label="左から登場"><svg aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
+        <button id="animNone"  class="seg-btn" title="登場アニメなし" aria-label="アニメなし"><svg aria-hidden="true"><use href="#i-none"/></svg></button>
       </div>
     </div>
   </nav>
@@ -335,30 +518,30 @@ select,input,textarea{ font: inherit; color: inherit; }
   <!-- MAIN -->
   <main class="main">
     <section class="pane-edit" aria-label="Markdown エディタ">
-      <div class="pane-head"><svg><use href="#i-edit-doc"/></svg>Markdown<span class="spacer"></span><span class="lines" id="mdLines"></span></div>
+      <div class="pane-head"><svg aria-hidden="true"><use href="#i-edit-doc"/></svg>Markdown<span class="spacer"></span><span class="lines" id="mdLines" aria-live="polite"></span></div>
       <div class="editor-wrap">
         <div id="mdHighlight" class="md-highlight" aria-hidden="true"></div>
-        <textarea id="md" spellcheck="false"></textarea>
+        <textarea id="md" spellcheck="false" aria-label="Markdown ソース"></textarea>
       </div>
     </section>
 
-    <section class="pane-prev">
+    <section class="pane-prev" aria-label="プレビュー">
       <div class="stage" id="stage">
-        <div class="badge"><span class="num-pill" id="badgeNum">–</span> / <span id="badgeTotal">–</span></div>
+        <div class="badge" aria-label="スライド番号"><span class="num-pill" id="badgeNum">–</span> / <span id="badgeTotal">–</span></div>
         <div id="slides"></div>
-        <div class="hint" id="editHint"></div>
+        <div class="hint" id="editHint" aria-live="polite"></div>
       </div>
-      <div class="filmstrip">
-        <button class="nav" id="filmPrev" title="前へ"><svg><use href="#i-chevron-left"/></svg></button>
-        <div class="thumbs" id="thumbs"></div>
-        <button class="nav" id="filmNext" title="次へ"><svg><use href="#i-chevron-right"/></svg></button>
+      <div class="filmstrip" aria-label="スライド一覧">
+        <button class="nav" id="filmPrev" title="前へ" aria-label="前のスライドへスクロール"><svg aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+        <div class="thumbs" id="thumbs" role="tablist" aria-label="スライドサムネイル"></div>
+        <button class="nav" id="filmNext" title="次へ" aria-label="次のスライドへスクロール"><svg aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
       </div>
     </section>
   </main>
 
   <!-- STATUS BAR -->
-  <footer class="statusbar">
-    <span class="status-pill" id="status"><span class="dot"></span><span id="statusText">読み込み中…</span></span>
+  <footer class="statusbar" role="status" aria-live="polite">
+    <span class="status-pill" id="status"><span class="dot" aria-hidden="true"></span><span id="statusText">読み込み中…</span></span>
     <span class="grow"></span>
     <span class="sb-item" id="sbSlides">–</span>
     <span class="sb-item" id="sbLines">–</span>
@@ -366,11 +549,11 @@ select,input,textarea{ font: inherit; color: inherit; }
 </div>
 
 <!-- SETTINGS SHEET -->
-<div class="scrim" id="scrim"></div>
-<aside class="sheet" id="sheet" aria-label="設定">
+<div class="scrim" id="scrim" aria-hidden="true"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-label="設定" aria-hidden="true">
   <div class="sheet-head">
-    <button class="icon-btn" id="closeSettings" title="閉じる"><svg><use href="#i-close"/></svg></button>
-    <h2>設定</h2>
+    <button class="icon-btn" id="closeSettings" title="閉じる" aria-label="設定を閉じる"><svg aria-hidden="true"><use href="#i-close"/></svg></button>
+    <h2 id="sheetTitle">設定</h2>
   </div>
   <div class="sheet-body">
     <div class="sect">
