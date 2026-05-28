@@ -287,6 +287,12 @@ function syncFontSel() {
     if (t && t.font) fv = t.font;
   }
   fontSel.value = fv;
+  // M3 ドロップダウンの表示ラベルも同期。
+  const label = document.getElementById("fmtFontLabel");
+  if (label) {
+    const opt = fontSel.querySelector(`option[value="${(fv || "").replace(/"/g, '\\"')}"]`);
+    label.textContent = (opt && opt.textContent) || "既定";
+  }
 }
 
 function enterCharMode(slide, block, g) {
@@ -295,6 +301,8 @@ function enterCharMode(slide, block, g) {
   charMode = { slide, block };
   selected = { slide, block, el: null };
   clearSelection();
+  // fmtbar の状態 (anim 無効化など) を charMode 反映させるため再評価。
+  updateFmtbar();
   setStatus("ok", "文字編集モード: 文字(緑枠)をドラッグで個別移動。別の場所をクリックで解除");
 }
 
@@ -691,7 +699,9 @@ function updateFmtbar() {
     return;
   }
   const bo = overrides[selected.slide] && overrides[selected.slide][selected.block];
-  updateAnimBtns(true, (bo && bo.anim));
+  // 個別要素編集モード (charMode 中) や要素選択 (isEl) では登場アニメはブロック単位なので無効化。
+  const animUsable = !isEl && !(charMode && charMode.slide === selected.slide && charMode.block === selected.block);
+  updateAnimBtns(animUsable, (bo && bo.anim));
   if (isEl) {
     const eo = (bo && bo.els && bo.els[selected.el]) || {};
     const on = !!eo.bold;
@@ -742,6 +752,110 @@ if (fontSelEl) fontSelEl.addEventListener("change", () => {
     mdEl.value = v ? setFrontmatterKey(mdEl.value, "font", v) : removeFrontmatterKey(mdEl.value, "font");
     update(); baselineHistory();
   }
+});
+
+// ---- M3 ドロップダウン (fmtbar のフォント picker) ----
+// native <select> のポップアップは OS 任せで上端編集時に見切れることがあるため、
+// クリックで下方向に開くカスタムメニューに置換。空きが無ければ上方向に flip する。
+function renderFontMenu() {
+  const menu = document.getElementById("fmtFontMenu");
+  const sel = document.getElementById("fontSel");
+  if (!menu || !sel) return;
+  const cur = sel.value || "";
+  const opts = Array.from(sel.options);
+  // 既定 (value="") にはヒント (Noto Sans JP) を見出しの下に小さく出す。
+  menu.innerHTML = opts.map((o, i) => {
+    const v = o.value, label = o.textContent;
+    const hint = v === "" ? "Noto Sans JP" : "";
+    const sel2 = v === cur;
+    return `<div class="opt" role="option" data-v="${v.replace(/"/g, "&quot;")}" aria-selected="${sel2 ? "true" : "false"}" tabindex="${sel2 ? 0 : -1}" data-idx="${i}"><span>${label}</span>${hint ? `<span class="hint">${hint}</span>` : ""}</div>`;
+  }).join("");
+  menu.querySelectorAll(".opt").forEach((el) => {
+    el.addEventListener("click", () => {
+      const v = el.dataset.v;
+      sel.value = v;
+      sel.dispatchEvent(new Event("change"));
+      closeFontMenu();
+      document.getElementById("fmtFontBtn")?.focus();
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); (el.nextElementSibling || menu.firstElementChild).focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); (el.previousElementSibling || menu.lastElementChild).focus(); }
+      else if (e.key === "Escape") { e.preventDefault(); closeFontMenu(); document.getElementById("fmtFontBtn")?.focus(); }
+    });
+  });
+}
+
+function positionFontMenu() {
+  const btn = document.getElementById("fmtFontBtn");
+  const menu = document.getElementById("fmtFontMenu");
+  if (!btn || !menu) return;
+  const r = btn.getBoundingClientRect();
+  menu.style.minWidth = Math.max(r.width, 220) + "px";
+  // measure
+  const mh = menu.offsetHeight, mw = menu.offsetWidth;
+  // window.innerHeight が 0 を返す環境 (headless プレビュー等) のためフォールバック。
+  const winH = window.innerHeight || window.visualViewport?.height || document.documentElement.clientHeight || 800;
+  const winW = window.innerWidth || window.visualViewport?.width || document.documentElement.clientWidth || 1280;
+  const gap = 6, pad = 8;
+  const below = winH - r.bottom - gap;
+  const above = r.top - gap;
+  let top, flipUp = false;
+  if (mh + gap <= below || below >= above) {
+    top = r.bottom + gap;
+  } else {
+    top = Math.max(pad, r.top - mh - gap);
+    flipUp = true;
+  }
+  let left = r.left;
+  if (left + mw > winW - pad) left = winW - mw - pad;
+  if (left < pad) left = pad;
+  menu.style.top = top + "px";
+  menu.style.left = left + "px";
+  menu.classList.toggle("flip-up", flipUp);
+}
+
+let _fontMenuOutside = null, _fontMenuEsc = null, _fontMenuReposition = null;
+function openFontMenu() {
+  renderFontMenu();
+  const menu = document.getElementById("fmtFontMenu");
+  const btn = document.getElementById("fmtFontBtn");
+  if (!menu || !btn) return;
+  menu.classList.add("is-open");
+  positionFontMenu();
+  btn.setAttribute("aria-expanded", "true");
+  // 選択中の項目にフォーカス (なければ先頭)。
+  const cur = menu.querySelector('.opt[aria-selected="true"]') || menu.querySelector(".opt");
+  cur?.focus({ preventScroll: false });
+  _fontMenuOutside = (e) => {
+    if (menu.contains(e.target) || btn.contains(e.target)) return;
+    closeFontMenu();
+  };
+  _fontMenuEsc = (e) => { if (e.key === "Escape") { closeFontMenu(); btn.focus(); } };
+  _fontMenuReposition = () => positionFontMenu();
+  setTimeout(() => document.addEventListener("pointerdown", _fontMenuOutside, true), 0);
+  document.addEventListener("keydown", _fontMenuEsc);
+  window.addEventListener("resize", _fontMenuReposition);
+  window.addEventListener("scroll", _fontMenuReposition, true);
+}
+function closeFontMenu() {
+  const menu = document.getElementById("fmtFontMenu");
+  const btn = document.getElementById("fmtFontBtn");
+  menu?.classList.remove("is-open");
+  menu?.classList.remove("flip-up");
+  btn?.setAttribute("aria-expanded", "false");
+  if (_fontMenuOutside) document.removeEventListener("pointerdown", _fontMenuOutside, true);
+  if (_fontMenuEsc) document.removeEventListener("keydown", _fontMenuEsc);
+  if (_fontMenuReposition) { window.removeEventListener("resize", _fontMenuReposition); window.removeEventListener("scroll", _fontMenuReposition, true); }
+  _fontMenuOutside = _fontMenuEsc = _fontMenuReposition = null;
+}
+document.getElementById("fmtFontBtn")?.addEventListener("click", () => {
+  const menu = document.getElementById("fmtFontMenu");
+  if (menu && menu.classList.contains("is-open")) closeFontMenu(); else openFontMenu();
+});
+document.getElementById("fmtFontBtn")?.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") { e.preventDefault(); openFontMenu(); }
 });
 
 // ---- ファイルドロップ / スクロール同期 ----

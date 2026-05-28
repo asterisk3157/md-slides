@@ -406,6 +406,32 @@ select,input,textarea{ font: inherit; color: inherit; }
 
 /* fmtbar のフィールド select に right padding を増やして caret と被らないように */
 .fmtbar .field select{ padding-right: 26px; }
+
+/* fmtbar のフォント picker は M3 ドロップダウン (常に下方向、収まらない時だけ上にflip)。 */
+/* native <select> のポップアップが上端編集時に見切れる対策。 */
+.field-wrap{ position: relative; display: inline-flex; }
+.field-btn{ height: 32px; border: 1px solid var(--outline); border-radius: var(--r-sm); background: var(--surface-container-lowest); padding: 0 8px 0 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; min-width: 120px; max-width: 168px; color: var(--on-surface); transition: border-color var(--dur-short-3) var(--easing-std), background-color var(--dur-short-3) var(--easing-std); position: relative; isolation: isolate; }
+.field-btn::before{ content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; pointer-events: none; transition: opacity var(--dur-short-3) var(--easing-std); z-index: -1; }
+.field-btn:hover{ border-color: var(--on-surface); }
+.field-btn:hover::before{ opacity: .04; }
+.field-btn:active::before{ opacity: .08; transition-duration: 0ms; }
+.field-btn[aria-expanded="true"]{ border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.field-btn[aria-expanded="true"]::before{ opacity: .06; }
+.field-btn .label{ flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-btn .caret{ width: 16px; height: 16px; color: var(--on-surface-variant); transition: transform var(--dur-short-3) var(--easing-std); flex-shrink: 0; }
+.field-btn[aria-expanded="true"] .caret{ transform: rotate(180deg); color: var(--primary); }
+
+.font-menu{ position: fixed; top: 0; left: 0; min-width: 220px; max-width: 300px; max-height: 380px; overflow-y: auto; background: var(--surface-container-low); border: 1px solid var(--outline-variant); border-radius: var(--r-md); box-shadow: var(--elev-3); padding: 6px; z-index: 9; display: none; transform-origin: top center; }
+.font-menu.is-open{ display: block; animation: m3-pop var(--dur-short-4) var(--easing-emph-decel); }
+.font-menu.flip-up{ transform-origin: bottom center; }
+.font-menu .opt{ display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; border-radius: var(--r-sm); cursor: pointer; font-size: 13px; color: var(--on-surface); position: relative; isolation: isolate; transition: background-color var(--dur-short-3) var(--easing-std); user-select: none; }
+.font-menu .opt::before{ content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--on-surface); opacity: 0; pointer-events: none; transition: opacity var(--dur-short-3) var(--easing-std); z-index: -1; }
+.font-menu .opt:hover::before{ opacity: .06; }
+.font-menu .opt[aria-selected="true"]{ background: rgba(11, 87, 208, 0.10); color: var(--primary); font-weight: 500; }
+.font-menu .opt[aria-selected="true"]:hover::before{ opacity: 0; }
+.font-menu .opt .hint{ font-size: 11px; color: var(--on-surface-variant); font-weight: 400; }
+.font-menu .opt[aria-selected="true"] .hint{ color: var(--primary); opacity: .75; }
+.font-menu .opt:focus-visible{ outline: 2px solid var(--primary); outline-offset: -2px; }
 </style>
 </head>
 <body>
@@ -482,8 +508,13 @@ select,input,textarea{ font: inherit; color: inherit; }
         <span id="fmtSizeVal" class="val" aria-live="polite">–</span><span class="unit" aria-hidden="true">pt</span>
         <button id="fmtSizeUp" aria-label="大きく"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       </div>
-      <div class="field">
-        <select id="fontSel" aria-label="フォント" title="この要素のフォント">
+      <div class="field-wrap">
+        <button id="fmtFontBtn" class="field-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="フォント" title="この要素のフォント">
+          <span class="label" id="fmtFontLabel">既定</span>
+          <svg class="caret" aria-hidden="true"><use href="#i-caret-down"/></svg>
+        </button>
+        <!-- 隠し <select>: 既存 JS が value/change で読み書きするので互換のため残す。表示は #fmtFontMenu (body 直下)。 -->
+        <select id="fontSel" aria-hidden="true" tabindex="-1" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden">
           <option value="">既定</option>
           <option value="Noto Sans JP">Noto Sans</option>
           <option value="LINE Seed Sans JP">LINE Seed</option>
@@ -498,7 +529,6 @@ select,input,textarea{ font: inherit; color: inherit; }
           <option value="M PLUS Rounded 1c">丸ゴシック</option>
           <option value="Klee One">筆書き</option>
         </select>
-        <svg class="caret"><use href="#i-caret-down"/></svg>
       </div>
     </div>
     <div class="divider-v" aria-hidden="true"></div>
@@ -515,6 +545,10 @@ select,input,textarea{ font: inherit; color: inherit; }
       </div>
     </div>
   </nav>
+
+  <!-- フォント picker のドロップダウン本体: fmtbar には transform が掛かっておりその子孫の
+       position:fixed が absolute 扱いになるため、body 直下に出して viewport 基準で配置する。 -->
+  <div id="fmtFontMenu" class="font-menu" role="listbox" aria-label="フォント"></div>
 
   <!-- MAIN -->
   <main class="main">
