@@ -348,13 +348,26 @@ select,input,textarea{ font: inherit; color: inherit; }
 .btn-danger:hover::before{ opacity: .08; }
 .btn-danger:active::before{ opacity: .12; transition-duration: 0ms; }
 
-/* --- Preview slide internals (JS contract) --- */
+/* --- Preview slide internals (JS contract) ---
+   selection rect / handle / charmode の色は M3 primary/tertiary に同期。
+   JS が createElementNS で塗り色を直書きしている箇所もあるが、
+   CSS で上書きする (preview.js 側のロジックは変えない方針)。 */
 .bhit{ fill: transparent; cursor: pointer; pointer-events: all; }
 .ehit{ fill: transparent; pointer-events: none; }
-.blk:not(.charmode):hover .bhit{ fill: rgba(11,87,208,.05); }
+.blk:not(.charmode):hover .bhit{ fill: rgba(11,87,208,.06); }
 .blk.charmode .ehit{ pointer-events: all; cursor: move; stroke: #0a8754; stroke-width: 0.8; stroke-dasharray: 2 2; }
-.blk.charmode .ehit:hover{ fill: rgba(10,135,84,.08); }
+.blk.charmode .ehit:hover{ fill: rgba(10,135,84,.10); }
+/* JS が createElementNS で直接 stroke/fill を当てているが、CSS で M3 primary に整える */
+.slide-card svg .sel-rect{ fill: rgba(11,87,208,.06) !important; stroke: var(--p-40) !important; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.slide-card svg .blk.charmode .sel-rect{ stroke: #0a8754 !important; }
+.slide-card svg .handle-rect{ fill: var(--p-40) !important; stroke: #fff !important; stroke-width: 1.5; }
+.slide-card svg .handle-rect:hover{ stroke-width: 2; }
 .legacy-hidden{ display: none !important; }
+
+/* Reduced motion: ユーザー設定を尊重 */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
 </style>
 </head>
 <body>
@@ -391,34 +404,34 @@ select,input,textarea{ font: inherit; color: inherit; }
 <div class="app">
   <!-- APP BAR -->
   <header class="appbar">
-    <a class="brand" href="/" title="トップへ">
-      <div class="brand-mark">m</div>
-      <div class="brand-wm"><em>md</em>-slides</div>
+    <a class="brand" href="/" title="トップへ" aria-label="md-slides トップへ">
+      <div class="brand-mark" aria-hidden="true">m</div>
+      <div class="brand-wm" aria-hidden="true"><em>md</em>-slides</div>
     </a>
     <div class="grow"></div>
-    <button id="undo" class="icon-btn" title="元に戻す (⌘Z)"><svg><use href="#i-undo"/></svg></button>
-    <button id="redo" class="icon-btn" title="やり直し (⌘Y / ⌘⇧Z)"><svg><use href="#i-redo"/></svg></button>
-    <button id="openSettings" class="icon-btn" title="設定"><svg><use href="#i-settings"/></svg></button>
-    <div class="divider-v"></div>
-    <button id="dl" class="btn-filled" title="編集できる .pptx をダウンロード"><svg><use href="#i-download"/></svg>ダウンロード</button>
+    <button id="undo" class="icon-btn" title="元に戻す (⌘Z)" aria-label="元に戻す"><svg aria-hidden="true"><use href="#i-undo"/></svg></button>
+    <button id="redo" class="icon-btn" title="やり直し (⌘Y / ⌘⇧Z)" aria-label="やり直し"><svg aria-hidden="true"><use href="#i-redo"/></svg></button>
+    <button id="openSettings" class="icon-btn" title="設定" aria-label="設定を開く" aria-haspopup="dialog"><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
+    <div class="divider-v" aria-hidden="true"></div>
+    <button id="dl" class="btn-filled" title="編集できる .pptx をダウンロード"><svg aria-hidden="true"><use href="#i-download"/></svg>ダウンロード</button>
   </header>
 
   <!-- FORMAT BAR (contextual, floating) -->
   <nav id="fmtbar" class="fmtbar" aria-label="書式ツールバー" role="toolbar">
     <div class="group">
-      <button id="fmtBold" class="tgl" title="太字"><span class="i-bold">B</span></button>
+      <button id="fmtBold" class="tgl" title="太字" aria-label="太字" aria-pressed="false"><span class="i-bold" aria-hidden="true">B</span></button>
       <div style="position:relative">
-        <button id="fmtColorBtn" class="color-trigger" title="文字色" aria-haspopup="true">
-          <svg><use href="#i-text-color"/></svg>
-          <span id="fmtColorChip" class="chip" style="border-radius:4px;width:16px;height:16px;padding:0;background:#1b1b1f;border:1px solid rgba(0,0,0,.15)"></span>
-          <svg class="caret"><use href="#i-caret-down"/></svg>
+        <button id="fmtColorBtn" class="color-trigger" title="文字色" aria-label="文字色" aria-haspopup="dialog" aria-expanded="false">
+          <svg aria-hidden="true"><use href="#i-text-color"/></svg>
+          <span id="fmtColorChip" class="chip" style="border-radius:4px;width:16px;height:16px;padding:0;background:#1b1b1f;border:1px solid rgba(0,0,0,.15)" aria-hidden="true"></span>
+          <svg class="caret" aria-hidden="true"><use href="#i-caret-down"/></svg>
         </button>
-        <input id="fmtColor" type="color" value="#000000" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
-        <div id="fmtColorPop" class="color-pop" role="dialog">
+        <input id="fmtColor" type="color" value="#000000" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" aria-hidden="true" />
+        <div id="fmtColorPop" class="color-pop" role="dialog" aria-label="文字色の選択">
           <h4>標準カラー</h4>
-          <div id="cpStd" class="row"></div>
+          <div id="cpStd" class="row" role="radiogroup" aria-label="標準カラー"></div>
           <h4>グレー階調</h4>
-          <div id="cpGray" class="row"></div>
+          <div id="cpGray" class="row" role="radiogroup" aria-label="グレー階調"></div>
           <div class="custom">
             <label for="customPick">カスタム</label>
             <input id="customPick" type="color" value="#000000" />
@@ -426,10 +439,10 @@ select,input,textarea{ font: inherit; color: inherit; }
           </div>
         </div>
       </div>
-      <div class="stepper" title="文字サイズ">
-        <button id="fmtSizeDown" aria-label="小さく"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M5 11h14v2H5z"/></svg></button>
-        <span id="fmtSizeVal" class="val">–</span><span class="unit">pt</span>
-        <button id="fmtSizeUp" aria-label="大きく"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
+      <div class="stepper" title="文字サイズ" role="group" aria-label="文字サイズ">
+        <button id="fmtSizeDown" aria-label="小さく"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 11h14v2H5z"/></svg></button>
+        <span id="fmtSizeVal" class="val" aria-live="polite">–</span><span class="unit" aria-hidden="true">pt</span>
+        <button id="fmtSizeUp" aria-label="大きく"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       </div>
       <div class="field">
         <select id="fontSel" aria-label="フォント" title="この要素のフォント">
@@ -450,17 +463,17 @@ select,input,textarea{ font: inherit; color: inherit; }
         <svg class="caret"><use href="#i-caret-down"/></svg>
       </div>
     </div>
-    <div class="divider-v"></div>
-    <div class="group"><button id="fmtRole" class="chip is-on" title="ブロックの役割"><svg><use href="#i-style"/></svg><span id="fmtRoleLabel">本文</span></button></div>
-    <div class="divider-v"></div>
+    <div class="divider-v" aria-hidden="true"></div>
+    <div class="group"><button id="fmtRole" class="chip is-on" title="ブロックの役割" aria-label="ブロックの役割"><svg aria-hidden="true"><use href="#i-style"/></svg><span id="fmtRoleLabel">本文</span></button></div>
+    <div class="divider-v" aria-hidden="true"></div>
     <div class="group">
-      <span class="group-label">登場</span>
+      <span class="group-label" aria-hidden="true">登場</span>
       <div class="seg" role="group" aria-label="登場アニメ方向">
-        <button id="animLeft"  class="seg-btn" title="右から登場（左へ進む）"><svg><use href="#i-arrow-left"/></svg></button>
-        <button id="animUp"    class="seg-btn" title="下から登場（上へ進む）"><svg><use href="#i-arrow-up"/></svg></button>
-        <button id="animDown"  class="seg-btn" title="上から登場（下へ進む）"><svg><use href="#i-arrow-down"/></svg></button>
-        <button id="animRight" class="seg-btn" title="左から登場（右へ進む）"><svg><use href="#i-arrow-right"/></svg></button>
-        <button id="animNone"  class="seg-btn" title="登場アニメなし"><svg><use href="#i-none"/></svg></button>
+        <button id="animLeft"  class="seg-btn" title="右から登場（左へ進む）" aria-label="右から登場"><svg aria-hidden="true"><use href="#i-arrow-left"/></svg></button>
+        <button id="animUp"    class="seg-btn" title="下から登場（上へ進む）" aria-label="下から登場"><svg aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+        <button id="animDown"  class="seg-btn" title="上から登場（下へ進む）" aria-label="上から登場"><svg aria-hidden="true"><use href="#i-arrow-down"/></svg></button>
+        <button id="animRight" class="seg-btn" title="左から登場（右へ進む）" aria-label="左から登場"><svg aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
+        <button id="animNone"  class="seg-btn" title="登場アニメなし" aria-label="アニメなし"><svg aria-hidden="true"><use href="#i-none"/></svg></button>
       </div>
     </div>
   </nav>
@@ -468,30 +481,30 @@ select,input,textarea{ font: inherit; color: inherit; }
   <!-- MAIN -->
   <main class="main">
     <section class="pane-edit" aria-label="Markdown エディタ">
-      <div class="pane-head"><svg><use href="#i-edit-doc"/></svg>Markdown<span class="spacer"></span><span class="lines" id="mdLines"></span></div>
+      <div class="pane-head"><svg aria-hidden="true"><use href="#i-edit-doc"/></svg>Markdown<span class="spacer"></span><span class="lines" id="mdLines" aria-live="polite"></span></div>
       <div class="editor-wrap">
         <div id="mdHighlight" class="md-highlight" aria-hidden="true"></div>
-        <textarea id="md" spellcheck="false"></textarea>
+        <textarea id="md" spellcheck="false" aria-label="Markdown ソース"></textarea>
       </div>
     </section>
 
-    <section class="pane-prev">
+    <section class="pane-prev" aria-label="プレビュー">
       <div class="stage" id="stage">
-        <div class="badge"><span class="num-pill" id="badgeNum">–</span> / <span id="badgeTotal">–</span></div>
+        <div class="badge" aria-label="スライド番号"><span class="num-pill" id="badgeNum">–</span> / <span id="badgeTotal">–</span></div>
         <div id="slides"></div>
-        <div class="hint" id="editHint"></div>
+        <div class="hint" id="editHint" aria-live="polite"></div>
       </div>
-      <div class="filmstrip">
-        <button class="nav" id="filmPrev" title="前へ"><svg><use href="#i-chevron-left"/></svg></button>
-        <div class="thumbs" id="thumbs"></div>
-        <button class="nav" id="filmNext" title="次へ"><svg><use href="#i-chevron-right"/></svg></button>
+      <div class="filmstrip" aria-label="スライド一覧">
+        <button class="nav" id="filmPrev" title="前へ" aria-label="前のスライドへスクロール"><svg aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+        <div class="thumbs" id="thumbs" role="tablist" aria-label="スライドサムネイル"></div>
+        <button class="nav" id="filmNext" title="次へ" aria-label="次のスライドへスクロール"><svg aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
       </div>
     </section>
   </main>
 
   <!-- STATUS BAR -->
-  <footer class="statusbar">
-    <span class="status-pill" id="status"><span class="dot"></span><span id="statusText">読み込み中…</span></span>
+  <footer class="statusbar" role="status" aria-live="polite">
+    <span class="status-pill" id="status"><span class="dot" aria-hidden="true"></span><span id="statusText">読み込み中…</span></span>
     <span class="grow"></span>
     <span class="sb-item" id="sbSlides">–</span>
     <span class="sb-item" id="sbLines">–</span>
@@ -499,11 +512,11 @@ select,input,textarea{ font: inherit; color: inherit; }
 </div>
 
 <!-- SETTINGS SHEET -->
-<div class="scrim" id="scrim"></div>
-<aside class="sheet" id="sheet" aria-label="設定">
+<div class="scrim" id="scrim" aria-hidden="true"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-label="設定" aria-hidden="true">
   <div class="sheet-head">
-    <button class="icon-btn" id="closeSettings" title="閉じる"><svg><use href="#i-close"/></svg></button>
-    <h2>設定</h2>
+    <button class="icon-btn" id="closeSettings" title="閉じる" aria-label="設定を閉じる"><svg aria-hidden="true"><use href="#i-close"/></svg></button>
+    <h2 id="sheetTitle">設定</h2>
   </div>
   <div class="sheet-body">
     <div class="sect">

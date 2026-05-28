@@ -258,7 +258,9 @@ function updateAnimBtns(enabled, curDir) {
     const b = document.getElementById(id);
     if (!b) continue;
     b.disabled = !enabled; b.style.opacity = enabled ? "1" : "0.4";
-    b.classList.toggle("is-on", enabled && eff === dir);
+    const on = enabled && eff === dir;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
   }
 }
 
@@ -637,18 +639,28 @@ const PALETTE_STD = ["#C00000", "#FF0000", "#FFC000", "#FFFF00", "#92D050", "#00
 const PALETTE_GRAY = ["#000000", "#404040", "#808080", "#BFBFBF", "#D9D9D9", "#FFFFFF"];
 const colorPop = document.getElementById("fmtColorPop");
 const colorBtn = document.getElementById("fmtColorBtn");
-function closeColorPop() { if (colorPop) colorPop.classList.remove("is-open"); }
+function closeColorPop() {
+  if (colorPop) colorPop.classList.remove("is-open");
+  if (colorBtn) colorBtn.setAttribute("aria-expanded", "false");
+}
 function refreshSwatchActive() {
   if (!colorPop) return;
   const cur = (currentColorVal() || "").toUpperCase();
-  colorPop.querySelectorAll(".sw").forEach((b) => b.classList.toggle("is-on", (b.dataset.color || "").toUpperCase() === cur));
+  colorPop.querySelectorAll(".sw").forEach((b) => {
+    const on = (b.dataset.color || "").toUpperCase() === cur;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-checked", on ? "true" : "false");
+  });
   const ci = $("fmtColor"); if (ci && /^#[0-9A-F]{6}$/.test(cur)) ci.value = cur;
   const cp = $("customPick"); if (cp && /^#[0-9A-F]{6}$/.test(cur)) cp.value = cur;
 }
-function openColorPop() { if (colorPop) { colorPop.classList.add("is-open"); refreshSwatchActive(); } }
+function openColorPop() {
+  if (colorPop) { colorPop.classList.add("is-open"); refreshSwatchActive(); }
+  if (colorBtn) colorBtn.setAttribute("aria-expanded", "true");
+}
 function buildSwatches(container, colors) {
   if (!container) return;
-  container.innerHTML = colors.map((c) => `<button class="sw" data-color="${c}" title="${c}" style="background:${c}"></button>`).join("");
+  container.innerHTML = colors.map((c) => `<button class="sw" data-color="${c}" title="${c}" role="radio" aria-checked="false" aria-label="${c}" style="background:${c}"></button>`).join("");
   container.querySelectorAll(".sw").forEach((b) => b.addEventListener("click", () => { setColor(b.dataset.color); closeColorPop(); }));
 }
 function updateFmtbar() {
@@ -671,11 +683,15 @@ function updateFmtbar() {
   updateAnimBtns(true, (bo && bo.anim));
   if (isEl) {
     const eo = (bo && bo.els && bo.els[selected.el]) || {};
-    boldBtn.classList.toggle("is-on", !!eo.bold); en(boldBtn, true);
+    const on = !!eo.bold;
+    boldBtn.classList.toggle("is-on", on); boldBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    en(boldBtn, true);
   } else {
     const editable = !!(meta.src && meta.src[1] - meta.src[0] === 1 && TEXT_TYPES.has(meta.type));
     const content = editable ? splitMarker(mdEl.value.split("\n")[meta.src[0]]).content : "";
-    boldBtn.classList.toggle("is-on", editable && isBold(content)); en(boldBtn, editable);
+    const on = editable && isBold(content);
+    boldBtn.classList.toggle("is-on", on); boldBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    en(boldBtn, editable);
   }
   en(colorBtnEl, true); szBtns.forEach((b) => en(b, true));
   const cur = currentColorVal();
@@ -766,7 +782,27 @@ $("resetAll").addEventListener("click", () => {
 });
 
 // ---- 設定サイドシート ----
-function setSettingsOpen(v) { $("sheet") && $("sheet").classList.toggle("is-open", v); $("scrim") && $("scrim").classList.toggle("is-open", v); }
+let _lastFocusBeforeSheet = null;
+function setSettingsOpen(v) {
+  const sheet = $("sheet"), scrim = $("scrim"), opener = $("openSettings");
+  if (sheet) { sheet.classList.toggle("is-open", v); sheet.setAttribute("aria-hidden", v ? "false" : "true"); }
+  if (scrim) { scrim.classList.toggle("is-open", v); scrim.setAttribute("aria-hidden", v ? "false" : "true"); }
+  if (opener) opener.setAttribute("aria-expanded", v ? "true" : "false");
+  if (v) {
+    _lastFocusBeforeSheet = document.activeElement;
+    // M3: シートが開いたら最初の操作ボタンへフォーカス (M3 modal focus トラップ的)
+    const close = $("closeSettings"); if (close) setTimeout(() => close.focus(), 50);
+  } else if (_lastFocusBeforeSheet) {
+    try { _lastFocusBeforeSheet.focus(); } catch (_) {}
+    _lastFocusBeforeSheet = null;
+  }
+}
+// Esc でシートも閉じる (md エディタフォーカス中は除く)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("sheet") && $("sheet").classList.contains("is-open")) {
+    e.preventDefault(); setSettingsOpen(false);
+  }
+});
 function syncSettings() {
   if (!lastResult) return;
   const df = $("setDefaultFont"); const v = lastResult.doc.meta.font || "";
