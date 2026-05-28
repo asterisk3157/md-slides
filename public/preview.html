@@ -10,6 +10,13 @@
 <style>
 /* =========================================================
    md-slides — Material 3 風 (オリジナル / 非 Google ブランド)
+   ---------------------------------------------------------
+   設計方針:
+   - M3 tokens は CSS 変数化 (palette/state/motion/duration)
+   - state layer は擬似要素 (::before) で表現し、色を on-surface 系で追随
+   - focus-visible 専用の focus ring (キーボード操作時のみ可視)
+   - prefers-reduced-motion をリスペクト
+   - ダークテーマは現状スコープ外
    ========================================================= */
 :root{
   --p-0:#000000; --p-10:#001a41; --p-20:#002e6e; --p-30:#00429b;
@@ -368,6 +375,36 @@ select,input,textarea{ font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{ animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* --- Micro-interactions: M3 press scale (任意の対象に効かせる) ---
+   主要操作は press 時に微縮小して触覚を返す。state layer と組み合わせ。 */
+.btn-filled, .btn-tonal, .btn-outlined, .btn-danger,
+.icon-btn, .tgl, .seg-btn, .filmstrip .nav, .stepper button,
+.color-trigger, .chip{
+  will-change: transform;
+  transition-property: background-color, color, border-color, box-shadow, transform;
+  transition-duration: var(--dur-short-3);
+  transition-timing-function: var(--easing-std);
+}
+.btn-filled:active, .btn-tonal:active, .btn-outlined:active, .btn-danger:active,
+.tgl:active, .color-trigger:active, .chip:active{
+  transform: scale(.98);
+  transition-duration: var(--dur-short-1);
+}
+.icon-btn:active, .seg-btn:active, .filmstrip .nav:active, .stepper button:active{
+  transform: scale(.94);
+  transition-duration: var(--dur-short-1);
+}
+.btn-filled:disabled, .btn-tonal:disabled, .btn-outlined:disabled, .btn-danger:disabled,
+.icon-btn:disabled, .tgl:disabled, .seg-btn:disabled, .color-trigger:disabled{
+  transform: none;
+}
+
+/* サムネのアクティブ切替を slight pop で */
+.thumb.is-active{ transform: scale(1.02); }
+
+/* fmtbar のフィールド select に right padding を増やして caret と被らないように */
+.fmtbar .field select{ padding-right: 26px; }
 </style>
 </head>
 <body>
