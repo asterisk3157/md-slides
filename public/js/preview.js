@@ -764,7 +764,10 @@ $("resetAll").addEventListener("click", () => {
 function setSettingsOpen(v) { $("sheet") && $("sheet").classList.toggle("is-open", v); $("scrim") && $("scrim").classList.toggle("is-open", v); }
 function syncSettings() {
   if (!lastResult) return;
-  const df = $("setDefaultFont"); if (df) df.value = lastResult.doc.meta.font || "";
+  const df = $("setDefaultFont"); const v = lastResult.doc.meta.font || "";
+  if (df) df.value = v;
+  const list = $("setDefaultFontList");
+  if (list) list.querySelectorAll(".radio-item").forEach((i) => i.classList.toggle("is-on", (i.dataset.value || "") === v));
   const sw = $("setAnim"); if (sw) { const on = lastResult.anim !== false; sw.classList.toggle("is-on", on); sw.setAttribute("aria-checked", String(on)); }
 }
 $("openSettings") && $("openSettings").addEventListener("click", () => { syncSettings(); setSettingsOpen(true); });
@@ -774,6 +777,18 @@ $("setDefaultFont") && $("setDefaultFont").addEventListener("change", (e) => {
   const v = e.target.value;
   mdEl.value = v ? setFrontmatterKey(mdEl.value, "font", v) : removeFrontmatterKey(mdEl.value, "font");
   update(); baselineHistory();
+});
+// 既定フォントのラジオリスト: クリック/Enterで hidden select の値を更新して change を発火
+const _fontList = $("setDefaultFontList");
+if (_fontList) _fontList.querySelectorAll(".radio-item").forEach((item) => {
+  const select = () => {
+    const v = item.dataset.value || "";
+    _fontList.querySelectorAll(".radio-item").forEach((i) => i.classList.toggle("is-on", i === item));
+    const sel = $("setDefaultFont");
+    if (sel) { sel.value = v; sel.dispatchEvent(new Event("change")); }
+  };
+  item.addEventListener("click", select);
+  item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); } });
 });
 $("setAnim") && $("setAnim").addEventListener("click", () => {
   const sw = $("setAnim"); const on = !sw.classList.contains("is-on");

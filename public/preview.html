@@ -193,9 +193,21 @@ select,input,textarea{ font: inherit; color: inherit; }
 .sect:last-child{ border-bottom: 0; }
 .sect h3{ margin: 0 0 14px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--n-30); }
 .sect p{ margin: 0 0 12px; font-size: 13px; color: var(--n-30); line-height: 1.6; }
-.row{ display:flex; align-items:center; gap: 16px; padding: 10px 0; }
-.row .label{ flex: 1; font-size: 15px; font-weight: 500; color: var(--n-10); }
-.row .desc{ font-size: 13px; color: var(--n-30); margin-top: 3px; line-height: 1.5; }
+.sheet-body .row{ display:flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 0; }
+.sheet-body .row .label{ flex: none; font-size: 15px; font-weight: 500; color: var(--n-10); }
+.sheet-body .row .desc{ font-size: 13px; color: var(--n-30); margin-top: 4px; line-height: 1.55; }
+.sheet-body .row > .switch, .sheet-body .row > .btn-danger{ align-self: flex-end; }
+
+/* 設定パネルのフォント選択: ポップアップでなくインライン ラジオリスト */
+.radiolist{ display:flex; flex-direction: column; gap: 2px; border: 1px solid var(--outline-variant); border-radius: var(--r-md); padding: 4px; background: var(--surface-container-lowest); max-height: 360px; overflow-y: auto; }
+.radio-item{ display:flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: var(--r-sm); cursor: pointer; transition: background .12s; position: relative; }
+.radio-item:hover{ background: rgba(0,0,0,.04); }
+.radio-item.is-on{ background: var(--p-95); }
+.radio-dot{ width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--n-40); flex-shrink: 0; position: relative; box-sizing: border-box; transition: border-color .12s; }
+.radio-item.is-on .radio-dot{ border-color: var(--p-40); }
+.radio-item.is-on .radio-dot::after{ content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--p-40); }
+.radio-label{ font-size: 15px; color: var(--n-10); flex: 1; line-height: 1.35; }
+.radio-sub{ display: block; font-size: 11.5px; color: var(--on-surface-variant); font-family: var(--font-sans); font-weight: 400; margin-top: 2px; }
 .switch{ position: relative; width: 52px; height: 32px; border-radius: 16px; background: var(--surface-container-highest); border: 2px solid var(--n-40); cursor: pointer; transition: background .2s, border-color .2s; flex-shrink: 0; }
 .switch::after{ content:""; position: absolute; top: 50%; left: 5px; transform: translate(0, -50%); width: 16px; height: 16px; border-radius: 50%; background: var(--n-40); transition: transform .2s var(--easing-emph), background .2s, width .2s, height .2s; }
 .switch.is-on{ background: var(--p-40); border-color: var(--p-40); }
@@ -364,30 +376,83 @@ select,input,textarea{ font: inherit; color: inherit; }
     <div class="sect">
       <h3>フォント</h3>
       <div class="row">
-        <div><div class="label">既定のフォント</div><div class="desc">すべてのスライドの本文に使う書体</div></div>
-        <div class="field" style="height:38px">
-          <select id="setDefaultFont">
-            <option value="">Noto Sans JP（既定）</option>
-            <option value="LINE Seed Sans JP">LINE Seed Sans JP</option>
-            <option value="UD デジタル教科書体 N-R, BIZ UDPGothic">UD 教科書体（Windows搭載／他は BIZ UDPGothic）</option>
-            <option value="Yu Gothic, YuGothic, Noto Sans JP">游ゴシック（Windows/Mac）</option>
-            <option value="Yu Mincho, YuMincho, Noto Serif JP">游明朝（Windows/Mac）</option>
-            <option value="Meiryo, Noto Sans JP">メイリオ（Windows）</option>
-            <option value="MS Gothic, MS ゴシック, ＭＳ ゴシック, Noto Sans JP">MS ゴシック（Windows）</option>
-            <option value="Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP">ヒラギノ角ゴ（Mac）</option>
-            <option value="Hiragino Mincho ProN, Noto Serif JP">ヒラギノ明朝（Mac）</option>
-            <option value="Noto Serif JP">Noto Serif JP（明朝）</option>
-            <option value="M PLUS Rounded 1c">M PLUS Rounded 1c（丸ゴシック）</option>
-            <option value="Klee One">Klee One（筆書き）</option>
-          </select>
-          <svg class="caret"><use href="#i-caret-down"/></svg>
+        <div>
+          <div class="label">既定のフォント</div>
+          <div class="desc">すべてのスライドの本文に使う書体</div>
         </div>
+        <div class="radiolist" id="setDefaultFontList" role="radiogroup" aria-label="既定のフォント">
+          <div class="radio-item is-on" data-value="" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Noto Sans JP',sans-serif">Noto Sans JP<span class="radio-sub">既定</span></span>
+          </div>
+          <div class="radio-item" data-value="LINE Seed Sans JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'LINE Seed Sans JP',sans-serif">LINE Seed Sans JP</span>
+          </div>
+          <div class="radio-item" data-value="UD デジタル教科書体 N-R, BIZ UDPGothic" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'UD デジタル教科書体 N-R','BIZ UDPGothic',sans-serif">UD 教科書体<span class="radio-sub">Windows 搭載・他は BIZ UDPGothic</span></span>
+          </div>
+          <div class="radio-item" data-value="Yu Gothic, YuGothic, Noto Sans JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Yu Gothic',YuGothic,'Noto Sans JP',sans-serif">游ゴシック<span class="radio-sub">Windows / Mac 搭載</span></span>
+          </div>
+          <div class="radio-item" data-value="Yu Mincho, YuMincho, Noto Serif JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Yu Mincho',YuMincho,'Noto Serif JP',serif">游明朝<span class="radio-sub">Windows / Mac 搭載</span></span>
+          </div>
+          <div class="radio-item" data-value="Meiryo, Noto Sans JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:Meiryo,'Noto Sans JP',sans-serif">メイリオ<span class="radio-sub">Windows 搭載</span></span>
+          </div>
+          <div class="radio-item" data-value="MS Gothic, MS ゴシック, ＭＳ ゴシック, Noto Sans JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'MS Gothic','MS ゴシック',sans-serif">MS ゴシック<span class="radio-sub">Windows 搭載</span></span>
+          </div>
+          <div class="radio-item" data-value="Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans','Noto Sans JP',sans-serif">ヒラギノ角ゴ<span class="radio-sub">Mac 搭載</span></span>
+          </div>
+          <div class="radio-item" data-value="Hiragino Mincho ProN, Noto Serif JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Hiragino Mincho ProN','Noto Serif JP',serif">ヒラギノ明朝<span class="radio-sub">Mac 搭載</span></span>
+          </div>
+          <div class="radio-item" data-value="Noto Serif JP" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Noto Serif JP',serif">Noto Serif JP<span class="radio-sub">明朝</span></span>
+          </div>
+          <div class="radio-item" data-value="M PLUS Rounded 1c" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'M PLUS Rounded 1c',sans-serif">M PLUS Rounded 1c<span class="radio-sub">丸ゴシック</span></span>
+          </div>
+          <div class="radio-item" data-value="Klee One" tabindex="0">
+            <span class="radio-dot"></span>
+            <span class="radio-label" style="font-family:'Klee One',sans-serif">Klee One<span class="radio-sub">筆書き</span></span>
+          </div>
+        </div>
+        <select id="setDefaultFont" class="legacy-hidden" aria-hidden="true">
+          <option value=""></option>
+          <option value="LINE Seed Sans JP"></option>
+          <option value="UD デジタル教科書体 N-R, BIZ UDPGothic"></option>
+          <option value="Yu Gothic, YuGothic, Noto Sans JP"></option>
+          <option value="Yu Mincho, YuMincho, Noto Serif JP"></option>
+          <option value="Meiryo, Noto Sans JP"></option>
+          <option value="MS Gothic, MS ゴシック, ＭＳ ゴシック, Noto Sans JP"></option>
+          <option value="Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP"></option>
+          <option value="Hiragino Mincho ProN, Noto Serif JP"></option>
+          <option value="Noto Serif JP"></option>
+          <option value="M PLUS Rounded 1c"></option>
+          <option value="Klee One"></option>
+        </select>
       </div>
     </div>
     <div class="sect">
       <h3>アニメーション</h3>
       <div class="row">
-        <div><div class="label">登場アニメ</div><div class="desc">オンにすると要素が左から順に表示されます。向きはツールバーで個別に変更できます。</div></div>
+        <div>
+          <div class="label">登場アニメ</div>
+          <div class="desc">オンにすると要素が左から順に表示されます。向きはツールバーで個別に変更できます。</div>
+        </div>
         <div class="switch is-on" id="setAnim" role="switch" aria-checked="true"></div>
       </div>
     </div>
