@@ -59,8 +59,9 @@ md-slides/
 ## 開発・検証
 - 必ず日本語でやり取りする
 - **push / 本番デプロイはユーザーの明示許可が必要**（コミットまでは可）
+- **git push（GitHub）≠ 本番反映**：Pages は GitHub 自動デプロイ未連携。push だけでは公開サイトは古いまま。本番反映は必ず `npm run deploy`（= wrangler pages deploy、ユーザーに実行依頼）。「直った」と言う前に公開URL `https://md-slides.pages.dev/js/preview.js` を WebFetch して修正が反映済みか確認する（2026-05 にこれを怠り、push だけで「反映済み」と誤認した）。
 - ローカル検証: `public/` を静的配信（`.claude/launch.json` の "static"＝python http.server）。
   wrangler は未インストール（テキストモードは API 不要なので静的配信で足りる）。
-  ※ブラウザは ES モジュールをキャッシュするので、編集が反映されない時はポート変更でバスト。
+  ※ブラウザは ES モジュールを強くキャッシュ。**`location.reload()` では旧コードが残る**ため、編集後の検証は必ず `.claude/launch.json` のポート番号を変えて新ポートで起動（preview_stop→port変更→preview_start）。`preview_eval` の合成 PointerEvent は実マウスと挙動が異なり（rAF が単体で発火しない等）、rAF 依存の `positionFmtbar` 等は `preview_screenshot` で描画を強制してから測る。
 - ユーザーが自分で実行するコマンドは fenced code block（1ブロック=1コマンド）で出す
 - 外部 GitHub からの DL 禁止／外部 npm は原則レジストリ経由（Webフォントは Google Fonts CDN）
