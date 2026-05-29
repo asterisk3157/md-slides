@@ -518,7 +518,7 @@ select,input,textarea{ font: inherit; color: inherit; }
           <option value="">既定</option>
           <option value="Noto Sans JP">Noto Sans</option>
           <option value="LINE Seed Sans JP">LINE Seed</option>
-          <option value="UD デジタル教科書体 N-R, BIZ UDPGothic">UD 教科書体</option>
+          <option value="UD デジタル教科書体 N-R, UDデジタル教科書体 N-R, UD デジタル教科書体 N, UD デジタル教科書 N, BIZ UDPGothic">UD 教科書体</option>
           <option value="Yu Gothic, YuGothic, Noto Sans JP">游ゴシック</option>
           <option value="Yu Mincho, YuMincho, Noto Serif JP">游明朝</option>
           <option value="Meiryo, Noto Sans JP">メイリオ</option>
@@ -607,9 +607,9 @@ select,input,textarea{ font: inherit; color: inherit; }
             <span class="radio-dot"></span>
             <span class="radio-label" style="font-family:'LINE Seed Sans JP',sans-serif">LINE Seed Sans JP</span>
           </div>
-          <div class="radio-item" data-value="UD デジタル教科書体 N-R, BIZ UDPGothic" tabindex="0">
+          <div class="radio-item" data-value="UD デジタル教科書体 N-R, UDデジタル教科書体 N-R, UD デジタル教科書体 N, UD デジタル教科書 N, BIZ UDPGothic" tabindex="0">
             <span class="radio-dot"></span>
-            <span class="radio-label" style="font-family:'UD デジタル教科書体 N-R','BIZ UDPGothic',sans-serif">UD 教科書体<span class="radio-sub">Windows 搭載・他は BIZ UDPGothic</span></span>
+            <span class="radio-label" style="font-family:'UD デジタル教科書体 N-R','BIZ UDPGothic',sans-serif">UD 教科書体<span class="radio-sub">Windows 標準（表記ゆれ対応）・無い環境は BIZ UDPGothic</span></span>
           </div>
           <div class="radio-item" data-value="Yu Gothic, YuGothic, Noto Sans JP" tabindex="0">
             <span class="radio-dot"></span>
@@ -648,10 +648,11 @@ select,input,textarea{ font: inherit; color: inherit; }
             <span class="radio-label" style="font-family:'Klee One',sans-serif">Klee One<span class="radio-sub">筆書き</span></span>
           </div>
         </div>
+        <p class="font-help" style="grid-column:1/-1;margin:10px 0 0;font-size:12px;line-height:1.7;color:var(--on-surface-variant)">一覧にないフォントも使えます。MD 先頭の <code>---</code> ブロックに <code>font: フォント名</code> と書くと、スライドを開く各PCにそのフォントが入っていれば反映されます（例 <code>font: HG正楷書体-PRO</code>）。<code>font: A体, B体</code> と複数書くと先に見つかったものが使われ、無い場合は既定フォントに戻ります。</p>
         <select id="setDefaultFont" class="legacy-hidden" aria-hidden="true">
           <option value=""></option>
           <option value="LINE Seed Sans JP"></option>
-          <option value="UD デジタル教科書体 N-R, BIZ UDPGothic"></option>
+          <option value="UD デジタル教科書体 N-R, UDデジタル教科書体 N-R, UD デジタル教科書体 N, UD デジタル教科書 N, BIZ UDPGothic"></option>
           <option value="Yu Gothic, YuGothic, Noto Sans JP"></option>
           <option value="Yu Mincho, YuMincho, Noto Serif JP"></option>
           <option value="Meiryo, Noto Sans JP"></option>
