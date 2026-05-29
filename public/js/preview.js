@@ -300,7 +300,7 @@ function enterCharMode(slide, block, g) {
   slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
   g.classList.add("charmode");
   charMode = { slide, block };
-  selected = { slide, block, el: null };
+  selSetOne({ slide, block, el: null });
   clearSelection();
   // fmtbar の状態 (anim 無効化など) を charMode 反映させるため再評価。
   updateFmtbar();
@@ -360,6 +360,9 @@ function onSvgPointerDown(e, slide, svg) {
     if (lastTap && lastTap.slide === slide && lastTap.block === block && now - lastTap.time < 350) {
       lastTap = null;
       enterCharMode(slide, block, g);
+      const dblEl = e.target.closest(".el"); // ダブルクリックした文字があればそれを選択状態に
+      if (dblEl && dblEl.dataset.el != null) selSetOne({ slide, block, el: parseInt(dblEl.dataset.el, 10) });
+      drawSelection();
       e.preventDefault(); return; // ブロックドラッグは開始しない
     }
     lastTap = { slide, block, time: now };
