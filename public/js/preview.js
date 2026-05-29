@@ -538,6 +538,7 @@ function drawSelection() {
   const svg = slideDiv.querySelector("svg");
   const NS = "http://www.w3.org/2000/svg";
   let primaryRect = null, primaryS = 1;
+  let aL = Infinity, aT = Infinity, aR = -Infinity, aB = -Infinity; // s=1 正規化したアンカー bbox(複数選択用)
   for (const it of selList) {
     if (it.slide !== currentSlide) continue;
     const c = cornersOf(it);
@@ -550,6 +551,8 @@ function drawSelection() {
     rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", Math.max(w, 4)); rect.setAttribute("height", Math.max(h, 4));
     rect.style.pointerEvents = "none";
     svg.appendChild(rect);
+    const rb = rect.getBoundingClientRect(); const ns = c.s || 1; // 各枠を s で割って s=1 相当に正規化(左上は s 非依存)
+    aL = Math.min(aL, rb.left); aT = Math.min(aT, rb.top); aR = Math.max(aR, rb.left + rb.width / ns); aB = Math.max(aB, rb.top + rb.height / ns);
     if (isPrimary) { primaryRect = rect; primaryS = c.s; }
     if (isPrimary && it.el == null) { // プライマリのブロックのみリサイズハンドル
       const hs = 12;
@@ -561,10 +564,8 @@ function drawSelection() {
     }
   }
   if (!primaryRect) { hideFmtbar(); return; }
-  if (selList.length > 1) { // 複数選択: 全枠の bbox を書式バーのアンカーに
-    let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
-    svg.querySelectorAll(".sel-rect").forEach((r) => { const b = r.getBoundingClientRect(); minL = Math.min(minL, b.left); minT = Math.min(minT, b.top); maxR = Math.max(maxR, b.right); maxB = Math.max(maxB, b.bottom); });
-    showFmtbar({ getBoundingClientRect: () => ({ left: minL, top: minT, width: maxR - minL, height: maxB - minT, right: maxR, bottom: maxB }) });
+  if (selList.length > 1) { // 複数選択: 全枠を s=1 正規化した bbox をアンカーに(サイズ変更で動かない)
+    showFmtbar({ getBoundingClientRect: () => ({ left: aL, top: aT, width: aR - aL, height: aB - aT, right: aR, bottom: aB }) });
   } else {
     showFmtbar(anchorFromRect(primaryRect, primaryS)); // 単一: サイズ変更の横ずれを s 正規化で防ぐ
   }
