@@ -19,7 +19,8 @@ let lastMissingWords = []; // 未登録の関数名(単語: sin/cos 等。文字
 let renderer = null, characters = {}, theme = {}, skeleton = null;
 let lastResult = null;
 let overrides = {};               // { slideIdx: { blockIdx: {dx,dy,s, els:{elIdx:{dx,dy,s}}} } }
-let selected = null;              // { slide, block, el(任意) }
+let selected = null;              // { slide, block, el(任意) } = 複数選択のプライマリ
+let selList = [];                 // 複数選択の集合 [{slide,block,el}]。selected はその最後(プライマリ)。
 let charMode = null;              // 文字編集中のブロック { slide, block }
 let currentSlide = 0;             // ステージに表示中のスライド index
 const statusTextEl = document.getElementById("statusText");
@@ -44,13 +45,13 @@ function undo() {
   if (histIdx <= 0) { setStatus("warn", "これ以上戻せません"); return; }
   histIdx -= 1;
   overrides = JSON.parse(JSON.stringify(history[histIdx]));
-  selected = null; charMode = null; persist(); update();
+  selList = []; selected = null; charMode = null; persist(); update();
 }
 function redo() {
   if (histIdx >= history.length - 1) { setStatus("warn", "やり直しはありません"); return; }
   histIdx += 1;
   overrides = JSON.parse(JSON.stringify(history[histIdx]));
-  selected = null; charMode = null; persist(); update();
+  selList = []; selected = null; charMode = null; persist(); update();
 }
 
 function setStatus(cls, msg) {
@@ -220,7 +221,7 @@ function setCurrentSlide(i) {
   i = Math.max(0, Math.min(n - 1, i));
   if (i === currentSlide && lastResult) return;
   currentSlide = i;
-  selected = null; charMode = null;
+  selList = []; selected = null; charMode = null;
   update();
   syncMdToSlide(i);
 }
@@ -255,9 +256,9 @@ function renderMdHighlight() {
 
 // 登場アニメの向き (ブロック単位 override.anim)。同じ向きを再クリックで既定に戻す。
 function setAnimDir(dir) {
-  if (!selected) return;
-  const ov = ovFor(selected.slide, selected.block);
-  if (ov.anim === dir) delete ov.anim; else ov.anim = dir;
+  const blks = selList.filter((s) => s.el == null); // アニメはブロック単位
+  if (!blks.length) return;
+  for (const it of blks) { const ov = ovFor(it.slide, it.block); if (ov.anim === dir) delete ov.anim; else ov.anim = dir; }
   persist(); update(); recordHistory();
 }
 // 矢印アイコン↔保存する dir のマッピング: 矢印は「進む方向」を示す (例 ←=左に進む=右から登場=wipe(right))。
@@ -337,7 +338,10 @@ function onSvgPointerDown(e, slide, svg) {
   if (charMode && charMode.slide === slide && elHit && elHitBlock === charMode.block) {
     lastTap = null;
     const el = parseInt(elHit.dataset.el, 10);
-    selected = { slide, block: charMode.block, el };
+    const item = { slide, block: charMode.block, el };
+    if (e.metaKey || e.ctrlKey) { selToggleItem(item); drawSelection(); updateFmtbar(); e.preventDefault(); return; }
+    if (e.shiftKey) { selRangeTo(item); drawSelection(); updateFmtbar(); e.preventDefault(); return; }
+    selSetOne(item);
     drawSelection();
     drag = { kind: "el", mode: "move", slide, block: charMode.block, el, startCm: [cx, cy], ov0: readElOv(slide, charMode.block, el), svg };
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
@@ -346,6 +350,11 @@ function onSvgPointerDown(e, slide, svg) {
   const g = e.target.closest(".blk");
   if (g) {
     const block = parseInt(g.dataset.block, 10);
+    const item = { slide, block, el: null };
+    const clearCharmode = () => { slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode")); charMode = null; };
+    // 修飾キーでブロックを複数選択 (ダブルタップ/ドラッグより優先)
+    if (e.metaKey || e.ctrlKey) { lastTap = null; selToggleItem(item); clearCharmode(); drawSelection(); updateFmtbar(); e.preventDefault(); return; }
+    if (e.shiftKey) { lastTap = null; selRangeTo(item); clearCharmode(); drawSelection(); updateFmtbar(); e.preventDefault(); return; }
     // 自前ダブルタップ判定 → 文字編集モードへ (dblclickイベントはpreventDefaultで発火しない)
     const now = Date.now();
     if (lastTap && lastTap.slide === slide && lastTap.block === block && now - lastTap.time < 350) {
@@ -354,17 +363,14 @@ function onSvgPointerDown(e, slide, svg) {
       e.preventDefault(); return; // ブロックドラッグは開始しない
     }
     lastTap = { slide, block, time: now };
-    if (!charMode || charMode.slide !== slide || charMode.block !== block) {
-      slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
-      charMode = null;
-    }
-    selected = { slide, block, el: null };
+    if (!charMode || charMode.slide !== slide || charMode.block !== block) clearCharmode();
+    selSetOne(item);
     drawSelection();
     drag = { kind: "block", mode: "move", slide, block, startCm: [cx, cy], ov0: readBlockOv(slide, block), svg };
     svg.setPointerCapture(e.pointerId); e.preventDefault();
   } else {
     lastTap = null;
-    selected = null; clearSelection(); hideFmtbar();
+    clearSel(); clearSelection(); hideFmtbar();
     slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
     charMode = null;
     updateFmtbar();
@@ -438,6 +444,32 @@ document.addEventListener("keydown", (e) => {
 function clearSelection() {
   slidesEl.querySelectorAll(".sel-rect,.handle-rect").forEach((el) => el.remove());
 }
+// ---- 複数選択 (文字・ブロック共通) ----
+// selList の各要素 {slide,block,el}: el=null=ブロック / 数値=要素(charMode内)。
+// 同種(全ブロック or 同一ブロック内の要素)のみ混在可。selected は集合のプライマリ。
+function sameSel(a, b) { return !!a && !!b && a.slide === b.slide && a.block === b.block && a.el === b.el; }
+function selCompatible(a, b) {
+  if (a.el == null && b.el == null) return a.slide === b.slide;                        // 両方ブロック
+  if (a.el != null && b.el != null) return a.slide === b.slide && a.block === b.block; // 同一ブロック内の要素
+  return false;
+}
+function selSetOne(item) { selList = [item]; selected = item; }            // 単一選択
+function selToggleItem(item) {                                            // Cmd/Ctrl: トグル追加 (最低1個は残す)
+  const i = selList.findIndex((s) => sameSel(s, item));
+  if (i >= 0) { if (selList.length > 1) { selList.splice(i, 1); selected = selList[selList.length - 1]; } }
+  else { if (selList.length && !selCompatible(selList[0], item)) selList = []; selList.push(item); selected = item; }
+}
+function selRangeTo(item) {                                               // Shift: 集合の起点〜item を範囲選択
+  const anchor = selList.length ? selList[0] : item;
+  if (!selCompatible(anchor, item)) { selSetOne(item); return; }
+  const useEl = item.el != null;
+  const a = useEl ? anchor.el : anchor.block, b = useEl ? item.el : item.block;
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  selList = [];
+  for (let k = lo; k <= hi; k++) selList.push(useEl ? { slide: item.slide, block: item.block, el: k } : { slide: item.slide, block: k, el: null });
+  selected = item;
+}
+function clearSel() { selList = []; selected = null; }
 // フローティング文脈ツールバー: 選択時だけ表示し、選択近傍に配置。
 function hideFmtbar() {
   const bar = $("fmtbar"); if (bar) { bar.classList.remove("is-visible"); bar.setAttribute("aria-hidden", "true"); }
@@ -477,50 +509,62 @@ function applyOv(p, ox, oy, ov) {
   const dx = ov.dx || 0, dy = ov.dy || 0, s = ov.s || 1;
   return [ox + (p[0] - ox) * s + dx, oy + (p[1] - oy) * s + dy];
 }
-function drawSelection() {
-  clearSelection();
-  if (!selected || !lastResult || selected.slide !== currentSlide) { hideFmtbar(); return; }
-  const { slide, block, el } = selected;
-  const slideDiv = slidesEl.querySelector(".slide");
-  if (!slideDiv) { hideFmtbar(); return; }
-  const svg = slideDiv.querySelector("svg");
-  const blk = lastResult.slides[slide].blocks[block];
-  if (!blk) return;
-  const bov = (overrides[slide] && overrides[slide][block]) || { dx: 0, dy: 0, s: 1 };
-  let corners; // [x,y] in cm の対角2点
-  let sTotal = bov.s || 1; // 書式バーのアンカー用: 合算スケール(s=1基準にして横ずれ防止)
-  if (el != null && blk.elements && blk.elements[el]) {
-    const e = blk.elements[el];
-    const eo = (bov.els && bov.els[el]) || { dx: 0, dy: 0, s: 1 };
-    sTotal = (eo.s || 1) * (bov.s || 1);
-    // 要素override → ブロックoverride の順で2隅を変換
+// it={slide,block,el} → 選択枠の cm 対角2点 + 合算スケール(アンカー横ずれ防止用)
+function cornersOf(it) {
+  const blk = lastResult.slides[it.slide] && lastResult.slides[it.slide].blocks[it.block];
+  if (!blk) return null;
+  const bov = (overrides[it.slide] && overrides[it.slide][it.block]) || { dx: 0, dy: 0, s: 1 };
+  if (it.el != null && blk.elements && blk.elements[it.el]) {
+    const e = blk.elements[it.el];
+    const eo = (bov.els && bov.els[it.el]) || { dx: 0, dy: 0, s: 1 };
     let p1 = applyOv([e.x_cm, e.y_cm], e.x_cm, e.y_cm, eo);
     let p2 = applyOv([e.x_cm + e.w_cm, e.y_cm + e.h_cm], e.x_cm, e.y_cm, eo);
     p1 = applyOv(p1, blk.x_cm, blk.y_cm, bov);
     p2 = applyOv(p2, blk.x_cm, blk.y_cm, bov);
-    corners = [p1, p2];
-  } else {
-    const p1 = applyOv([blk.x_cm, blk.y_cm], blk.x_cm, blk.y_cm, bov);
-    const p2 = applyOv([blk.x_cm + blk.w_cm, blk.y_cm + blk.h_cm], blk.x_cm, blk.y_cm, bov);
-    corners = [p1, p2];
+    return { corners: [p1, p2], s: (eo.s || 1) * (bov.s || 1) };
   }
-  const x = Math.min(corners[0][0], corners[1][0]) * PX, y = Math.min(corners[0][1], corners[1][1]) * PX;
-  const w = Math.abs(corners[1][0] - corners[0][0]) * PX, h = Math.abs(corners[1][1] - corners[0][1]) * PX;
+  const p1 = applyOv([blk.x_cm, blk.y_cm], blk.x_cm, blk.y_cm, bov);
+  const p2 = applyOv([blk.x_cm + blk.w_cm, blk.y_cm + blk.h_cm], blk.x_cm, blk.y_cm, bov);
+  return { corners: [p1, p2], s: bov.s || 1 };
+}
+function drawSelection() {
+  clearSelection();
+  if (!selList.length || !lastResult || !selected || selected.slide !== currentSlide) { hideFmtbar(); return; }
+  const slideDiv = slidesEl.querySelector(".slide");
+  if (!slideDiv) { hideFmtbar(); return; }
+  const svg = slideDiv.querySelector("svg");
   const NS = "http://www.w3.org/2000/svg";
-  const rect = document.createElementNS(NS, "rect");
-  rect.setAttribute("class", "sel-rect" + (el != null ? " is-el" : ""));
-  rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", Math.max(w, 4)); rect.setAttribute("height", Math.max(h, 4));
-  rect.style.pointerEvents = "none";
-  svg.appendChild(rect);
-  if (el == null) { // ブロック選択時のみリサイズハンドル
-    const hs = 12;
-    const handle = document.createElementNS(NS, "rect");
-    handle.setAttribute("class", "handle-rect");
-    handle.setAttribute("x", x + w - hs / 2); handle.setAttribute("y", y + h - hs / 2); handle.setAttribute("width", hs); handle.setAttribute("height", hs);
-    handle.style.cursor = "nwse-resize";
-    svg.appendChild(handle);
+  let primaryRect = null, primaryS = 1;
+  for (const it of selList) {
+    if (it.slide !== currentSlide) continue;
+    const c = cornersOf(it);
+    if (!c) continue;
+    const x = Math.min(c.corners[0][0], c.corners[1][0]) * PX, y = Math.min(c.corners[0][1], c.corners[1][1]) * PX;
+    const w = Math.abs(c.corners[1][0] - c.corners[0][0]) * PX, h = Math.abs(c.corners[1][1] - c.corners[0][1]) * PX;
+    const isPrimary = sameSel(it, selected);
+    const rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("class", "sel-rect" + (it.el != null ? " is-el" : "") + (isPrimary ? " is-primary" : ""));
+    rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", Math.max(w, 4)); rect.setAttribute("height", Math.max(h, 4));
+    rect.style.pointerEvents = "none";
+    svg.appendChild(rect);
+    if (isPrimary) { primaryRect = rect; primaryS = c.s; }
+    if (isPrimary && it.el == null) { // プライマリのブロックのみリサイズハンドル
+      const hs = 12;
+      const handle = document.createElementNS(NS, "rect");
+      handle.setAttribute("class", "handle-rect");
+      handle.setAttribute("x", x + w - hs / 2); handle.setAttribute("y", y + h - hs / 2); handle.setAttribute("width", hs); handle.setAttribute("height", hs);
+      handle.style.cursor = "nwse-resize";
+      svg.appendChild(handle);
+    }
   }
-  showFmtbar(anchorFromRect(rect, sTotal));
+  if (!primaryRect) { hideFmtbar(); return; }
+  if (selList.length > 1) { // 複数選択: 全枠の bbox を書式バーのアンカーに
+    let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+    svg.querySelectorAll(".sel-rect").forEach((r) => { const b = r.getBoundingClientRect(); minL = Math.min(minL, b.left); minT = Math.min(minT, b.top); maxR = Math.max(maxR, b.right); maxB = Math.max(maxB, b.bottom); });
+    showFmtbar({ getBoundingClientRect: () => ({ left: minL, top: minT, width: maxR - minL, height: maxB - minT, right: maxR, bottom: maxB }) });
+  } else {
+    showFmtbar(anchorFromRect(primaryRect, primaryS)); // 単一: サイズ変更の横ずれを s 正規化で防ぐ
+  }
   updateFmtbar();
 }
 
@@ -619,15 +663,15 @@ const CLS_COLOR = { key: "#e53935", weak: "#9e9e9e", note: "#1e88e5" };
 
 // サイズ変更: 要素選択中はその文字、ブロック選択中はそのブロックのスケール override。
 function changeSize(deltaPt) {
-  if (!selected) return;
-  const meta = blockMeta(selected.slide, selected.block);
-  if (!meta) return;
-  const basePt = currentPt(lastResult.doc.meta || {}, roleOf(meta.type));
-  const ov = selected.el != null
-    ? elOvFor(selected.slide, selected.block, selected.el)
-    : ovFor(selected.slide, selected.block);
-  const curEff = basePt * (ov.s || 1);
-  ov.s = Math.max(6, curEff + deltaPt) / basePt;   // 最小 6pt 相当
+  if (!selList.length) return;
+  for (const it of selList) {
+    const meta = blockMeta(it.slide, it.block);
+    if (!meta) continue;
+    const basePt = currentPt(lastResult.doc.meta || {}, roleOf(meta.type));
+    const ov = it.el != null ? elOvFor(it.slide, it.block, it.el) : ovFor(it.slide, it.block);
+    const curEff = basePt * (ov.s || 1);
+    ov.s = Math.max(6, curEff + deltaPt) / basePt;   // 最小 6pt 相当
+  }
   persist(); update(); recordHistory();
 }
 
@@ -646,15 +690,37 @@ function colorTarget() {
     : ovFor(selected.slide, selected.block);
 }
 function setColor(hexOrNull) {
-  const t = colorTarget();
-  if (!t) return;
-  if (hexOrNull == null) delete t.color; else t.color = hexOrNull;
+  if (!selList.length) return;
+  for (const it of selList) {
+    const t = it.el != null ? elOvFor(it.slide, it.block, it.el) : ovFor(it.slide, it.block);
+    if (hexOrNull == null) delete t.color; else t.color = hexOrNull;
+  }
   persist(); update(); recordHistory();
 }
 // 太字: 要素=override / ブロック=MD (** **)
+function blockBoldState(it) { // 複数ブロック太字用: MD行から太字状態を読む
+  const meta = blockMeta(it.slide, it.block);
+  if (!meta || !meta.src || meta.src[1] - meta.src[0] !== 1 || !TEXT_TYPES.has(meta.type)) return { editable: false };
+  const { prefix, content } = splitMarker(mdEl.value.split("\n")[meta.src[0]]);
+  return { editable: true, line: meta.src[0], prefix, content, bold: isBold(content) };
+}
 function fmtBoldClick() {
-  if (selected && selected.el != null) editElOv((eo) => { eo.bold = !eo.bold; });
-  else editBlockContent(toggleBold);
+  if (!selList.length) return;
+  const els = selList.filter((s) => s.el != null);
+  if (els.length) { // 要素(文字): override.bold を統一トグル (全部太字なら解除)
+    const allBold = els.every((it) => { const bo = overrides[it.slide] && overrides[it.slide][it.block]; const eo = bo && bo.els && bo.els[it.el]; return eo && eo.bold; });
+    for (const it of els) elOvFor(it.slide, it.block, it.el).bold = !allBold;
+    persist(); update(); recordHistory(); return;
+  }
+  const blks = selList.filter((s) => s.el == null);
+  if (blks.length === 1) { editBlockContent(toggleBold); return; } // 単一ブロックは従来通り
+  const targets = blks.map(blockBoldState).filter((s) => s.editable); // 複数ブロック: MD ** ** を統一トグル
+  if (!targets.length) { setStatus("warn", "選択中に太字にできるブロックがありません"); return; }
+  const allBold = targets.every((s) => s.bold);
+  const lines = mdEl.value.split("\n");
+  for (const s of targets) { const d = decompose(s.content); d.bold = !allBold; lines[s.line] = s.prefix + recompose(d); }
+  mdEl.value = lines.join("\n");
+  update(); baselineHistory();
 }
 // 現在の選択の override 色 (作成せず読むだけ)
 function currentColorVal() {
@@ -730,7 +796,7 @@ function updateFmtbar() {
   if (colorPop && colorPop.classList.contains("is-open")) refreshSwatchActive();
   const tgt = isEl ? ((bo && bo.els && bo.els[selected.el]) || {}) : (bo || {});
   const basePt = currentPt(lastResult.doc.meta || {}, roleOf(meta.type));
-  if (roleLabel) roleLabel.textContent = isEl ? "文字" : ROLE[roleOf(meta.type)].label;
+  if (roleLabel) roleLabel.textContent = selList.length > 1 ? selList.length + "個を選択" : (isEl ? "文字" : ROLE[roleOf(meta.type)].label);
   if (sizeVal) sizeVal.textContent = Math.round(basePt * (tgt.s || 1));
 }
 if (fmtbar) {
@@ -754,9 +820,11 @@ if (fmtbar) {
 const fontSelEl = document.getElementById("fontSel");
 if (fontSelEl) fontSelEl.addEventListener("change", () => {
   const v = fontSelEl.value;
-  if (lastResult && lastResult.mode === "text" && selected) {
-    const t = selected.el != null ? elOvFor(selected.slide, selected.block, selected.el) : ovFor(selected.slide, selected.block);
-    if (v) t.font = v; else delete t.font;
+  if (lastResult && lastResult.mode === "text" && selList.length) {
+    for (const it of selList) {
+      const t = it.el != null ? elOvFor(it.slide, it.block, it.el) : ovFor(it.slide, it.block);
+      if (v) t.font = v; else delete t.font;
+    }
     persist(); update(); recordHistory();
   } else {
     mdEl.value = v ? setFrontmatterKey(mdEl.value, "font", v) : removeFrontmatterKey(mdEl.value, "font");
@@ -876,7 +944,7 @@ mdEl.addEventListener("drop", (e) => {
   e.preventDefault();
   const f = e.dataTransfer.files[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = () => { mdEl.value = r.result; selected = null; charMode = null; update({ autoOpen: true }); baselineHistory(); };
+  r.onload = () => { mdEl.value = r.result; selList = []; selected = null; charMode = null; update({ autoOpen: true }); baselineHistory(); };
   r.readAsText(f);
 });
 
@@ -912,7 +980,7 @@ function updateUndoRedoBtns() {
   if (r) { const can = histIdx < history.length - 1; r.disabled = !can; r.style.opacity = can ? "1" : "0.4"; }
 }
 $("resetAll").addEventListener("click", () => {
-  overrides = {}; selected = null; charMode = null; persist(); update(); recordHistory();
+  overrides = {}; selList = []; selected = null; charMode = null; persist(); update(); recordHistory();
   setSettingsOpen(false);
 });
 
@@ -990,7 +1058,7 @@ window.addEventListener("resize", () => { if (selected) drawSelection(); });
 // Esc で選択解除
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && selected && document.activeElement !== mdEl) {
-    selected = null; charMode = null; clearSelection(); hideFmtbar();
+    selList = []; selected = null; charMode = null; clearSelection(); hideFmtbar();
     slidesEl.querySelectorAll(".blk.charmode").forEach((b) => b.classList.remove("charmode"));
     updateFmtbar();
   }
