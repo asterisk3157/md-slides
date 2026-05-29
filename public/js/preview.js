@@ -444,6 +444,14 @@ function hideFmtbar() {
   const pop = $("fmtColorPop"); if (pop) pop.classList.remove("is-open");
   const stage = $("stage"); if (stage) { stage.classList.remove("editing"); stage.classList.remove("has-selection"); }
 }
+function anchorFromRect(rectEl, s) {
+  // 選択枠は文字スケール override(s) で伸縮するので、s で割った "s=1 相当" の矩形を返し、
+  // サイズ変更で書式バーが横ずれしないようにする（左上は s 非依存なので left/top はそのまま）。
+  if (!s || Math.abs(s - 1) < 1e-6) return rectEl;
+  const b = rectEl.getBoundingClientRect();
+  const w0 = b.width / s, h0 = b.height / s;
+  return { getBoundingClientRect: () => ({ left: b.left, top: b.top, width: w0, height: h0, right: b.left + w0, bottom: b.top + h0 }) };
+}
 function positionFmtbar(anchorEl) {
   const bar = $("fmtbar"); if (!bar || !anchorEl) return;
   const r = anchorEl.getBoundingClientRect();
@@ -480,9 +488,11 @@ function drawSelection() {
   if (!blk) return;
   const bov = (overrides[slide] && overrides[slide][block]) || { dx: 0, dy: 0, s: 1 };
   let corners; // [x,y] in cm の対角2点
+  let sTotal = bov.s || 1; // 書式バーのアンカー用: 合算スケール(s=1基準にして横ずれ防止)
   if (el != null && blk.elements && blk.elements[el]) {
     const e = blk.elements[el];
     const eo = (bov.els && bov.els[el]) || { dx: 0, dy: 0, s: 1 };
+    sTotal = (eo.s || 1) * (bov.s || 1);
     // 要素override → ブロックoverride の順で2隅を変換
     let p1 = applyOv([e.x_cm, e.y_cm], e.x_cm, e.y_cm, eo);
     let p2 = applyOv([e.x_cm + e.w_cm, e.y_cm + e.h_cm], e.x_cm, e.y_cm, eo);
@@ -510,7 +520,7 @@ function drawSelection() {
     handle.style.cursor = "nwse-resize";
     svg.appendChild(handle);
   }
-  showFmtbar(rect);
+  showFmtbar(anchorFromRect(rect, sTotal));
   updateFmtbar();
 }
 
@@ -732,8 +742,8 @@ if (fmtbar) {
   const customPick = $("customPick"); if (customPick) customPick.addEventListener("input", () => setColor(customPick.value));
   const clearBtn = $("fmtClsClear"); if (clearBtn) clearBtn.addEventListener("click", () => { setColor(null); closeColorPop(); });
   document.addEventListener("click", (e) => { if (colorPop && colorPop.classList.contains("is-open") && !e.target.closest("#fmtColorPop") && !e.target.closest("#fmtColorBtn")) closeColorPop(); });
-  $("fmtSizeUp").addEventListener("click", () => changeSize(2));
-  $("fmtSizeDown").addEventListener("click", () => changeSize(-2));
+  $("fmtSizeUp").addEventListener("click", (e) => changeSize(e.shiftKey ? 5 : 1));
+  $("fmtSizeDown").addEventListener("click", (e) => changeSize(e.shiftKey ? -5 : -1));
   for (const [dir, id] of ANIM_MAP) {
     const b = $(id); if (b) b.addEventListener("click", () => setAnimDir(dir));
   }
@@ -976,7 +986,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); setCurrentSlide(currentSlide + 1); }
   else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); setCurrentSlide(currentSlide - 1); }
 });
-window.addEventListener("resize", () => { if (selected) { const r = slidesEl.querySelector(".sel-rect"); if (r) positionFmtbar(r); } });
+window.addEventListener("resize", () => { if (selected) drawSelection(); });
 // Esc で選択解除
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && selected && document.activeElement !== mdEl) {
