@@ -5,7 +5,7 @@
   "description": "テキスト専用 md→slide アプリ（ブラウザ完結・辞書なし・編集可能 pptx 出力）",
   "scripts": {
     "dev": "wrangler pages dev public --port 8788 --ip 0.0.0.0",
-    "deploy": "wrangler pages deploy public --project-name md-slides"
+    "deploy": "wrangler pages deploy public --project-name md-slides --commit-message=\"$(git rev-parse --short HEAD)\" --commit-hash=\"$(git rev-parse HEAD)\""
   },
   "devDependencies": {
     "wrangler": "^4.93.0"
